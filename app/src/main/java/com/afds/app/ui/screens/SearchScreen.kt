@@ -44,7 +44,7 @@ fun SearchScreen(
     var currentPage by remember { mutableIntStateOf(1) }
     var totalPages by remember { mutableIntStateOf(1) }
     var totalFiles by remember { mutableIntStateOf(0) }
-    var newSearchQuery by remember { mutableStateOf("") }
+    var newSearchQuery by remember { mutableStateOf(query) }
 
     // File details dialog state
     var showDetailsDialog by remember { mutableStateOf(false) }

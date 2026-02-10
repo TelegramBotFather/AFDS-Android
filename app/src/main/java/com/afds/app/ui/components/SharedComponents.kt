@@ -1,15 +1,22 @@
 package com.afds.app.ui.components
 
+import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -17,6 +24,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +77,7 @@ fun FileCard(
     val apiClient = AFDSApplication.instance.apiClient
     val sessionManager = AFDSApplication.instance.sessionManager
     var isDownloading by remember { mutableStateOf(false) }
+    var isCopying by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var isSaved by remember { mutableStateOf(false) }
 
@@ -138,7 +147,6 @@ fun FileCard(
                                 isSaving = true
                                 try {
                                     val token = sessionManager.getToken() ?: return@launch
-                                    Log.d("AFDS_SAVE", "Saving file: id=$fileId, category=$category, name=${file.displayName}")
                                     apiClient.saveFile(
                                         token = token,
                                         fileId = fileId,
@@ -188,17 +196,16 @@ fun FileCard(
                     )
                 }
 
-                // Download button
-                FilledTonalButton(
+                // Copy link button
+                IconButton(
                     onClick = {
                         if (fileId.isEmpty()) {
                             Toast.makeText(context, "Invalid file ID", Toast.LENGTH_SHORT).show()
-                            return@FilledTonalButton
+                            return@IconButton
                         }
                         scope.launch {
-                            isDownloading = true
+                            isCopying = true
                             try {
-                                Log.d("AFDS_DL", "Generating link: table=${catEnum.getTableName()}, id=$fileId")
                                 val response = apiClient.generateDownloadLink(
                                     catEnum.getTableName(),
                                     fileId
@@ -206,7 +213,54 @@ fun FileCard(
                                 if (response.success && response.url != null) {
                                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     clipboard.setPrimaryClip(ClipData.newPlainText("Download URL", response.url))
-                                    Toast.makeText(context, "Link copied to clipboard!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Link copied!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    throw Exception(response.error ?: "Failed to generate link")
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, e.message ?: "Error", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isCopying = false
+                            }
+                        }
+                    },
+                    enabled = !isCopying
+                ) {
+                    if (isCopying) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Copy Link",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                // Download button (direct download)
+                IconButton(
+                    onClick = {
+                        if (fileId.isEmpty()) {
+                            Toast.makeText(context, "Invalid file ID", Toast.LENGTH_SHORT).show()
+                            return@IconButton
+                        }
+                        scope.launch {
+                            isDownloading = true
+                            try {
+                                val response = apiClient.generateDownloadLink(
+                                    catEnum.getTableName(),
+                                    fileId
+                                )
+                                if (response.success && response.url != null) {
+                                    // Direct download using DownloadManager
+                                    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                    val request = DownloadManager.Request(Uri.parse(response.url))
+                                        .setTitle(file.displayName)
+                                        .setDescription("Downloading from AFDS")
+                                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, file.displayName)
+                                    downloadManager.enqueue(request)
+                                    Toast.makeText(context, "Download started!", Toast.LENGTH_SHORT).show()
                                 } else {
                                     throw Exception(response.error ?: "Failed to generate link")
                                 }
@@ -217,16 +271,17 @@ fun FileCard(
                             }
                         }
                     },
-                    enabled = !isDownloading,
-                    modifier = Modifier.padding(start = 4.dp)
+                    enabled = !isDownloading
                 ) {
                     if (isDownloading) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.Download,
+                            contentDescription = "Download",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(if (isDownloading) "..." else "Download", style = MaterialTheme.typography.labelMedium)
                 }
 
                 // Details button
@@ -236,7 +291,6 @@ fun FileCard(
                             Toast.makeText(context, "Invalid file ID", Toast.LENGTH_SHORT).show()
                             return@IconButton
                         }
-                        Log.d("AFDS_DETAILS", "Details click: id=$fileId, category=$category")
                         onDetailsClick(fileId, category)
                     }
                 ) {
@@ -335,73 +389,133 @@ fun FileListContent(
     emptyMessage: String = "No results found.",
     headerContent: @Composable () -> Unit = {}
 ) {
-    if (isLoading && files.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    } else if (files.isEmpty()) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.SearchOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = emptyMessage,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Scroll to top when page changes
+    LaunchedEffect(currentPage) {
+        listState.scrollToItem(0)
+    }
+
+    // Show scroll-to-top FAB when scrolled down
+    val showScrollToTop by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 3 }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Loading overlay with blur
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
+                    .blur(8.dp),
+            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Loading...",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
             }
         }
-    } else {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
-            item { headerContent() }
 
-            items(files.size) { index ->
-                val file = files[index]
-                FileCard(
-                    file = file,
-                    currentCategory = currentCategory,
-                    onDetailsClick = onDetailsClick,
-                    showSaveButton = showSaveButton
-                )
-            }
-
-            // Pagination
-            if (totalPages > 1) {
-                item {
-                    PaginationBar(
-                        currentPage = currentPage,
-                        totalPages = totalPages,
-                        onPageChange = onPageChange
+        if (!isLoading && files.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Default.SearchOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = emptyMessage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+        } else if (!isLoading) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                item { headerContent() }
 
-            // Loading indicator at bottom
-            if (isLoading) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                // Top pagination
+                if (totalPages > 1) {
+                    item {
+                        PaginationBar(
+                            currentPage = currentPage,
+                            totalPages = totalPages,
+                            onPageChange = onPageChange
+                        )
                     }
                 }
+
+                items(files.size) { index ->
+                    val file = files[index]
+                    FileCard(
+                        file = file,
+                        currentCategory = currentCategory,
+                        onDetailsClick = onDetailsClick,
+                        showSaveButton = showSaveButton
+                    )
+                }
+
+                // Bottom pagination
+                if (totalPages > 1) {
+                    item {
+                        PaginationBar(
+                            currentPage = currentPage,
+                            totalPages = totalPages,
+                            onPageChange = onPageChange
+                        )
+                    }
+                }
+            }
+        }
+
+        // Floating scroll-to-top button
+        AnimatedVisibility(
+            visible = showScrollToTop && !isLoading,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Scroll to top")
             }
         }
     }
@@ -416,7 +530,7 @@ fun PaginationBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -443,18 +557,6 @@ fun PaginationBar(
             enabled = currentPage < totalPages
         ) {
             Icon(Icons.Default.ChevronRight, contentDescription = "Next")
-        }
-    }
-}
-
-@Composable
-fun LoadingOverlay(isLoading: Boolean) {
-    AnimatedVisibility(visible = isLoading) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
         }
     }
 }
