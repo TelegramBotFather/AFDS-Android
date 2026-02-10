@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Archive box body -->
+    <path
+        android:pathData="M30,52 L30,78 Q30,82 34,82 L74,82 Q78,82 78,78 L78,52 Z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.95"/>
+
+    <!-- Archive box top/lid -->
+    <path
+        android:pathData="M26,40 Q26,36 30,36 L78,36 Q82,36 82,40 L82,52 L26,52 Z"
+        android:fillColor="#FFFFFF"/>
+
+    <!-- Archive handle/slot -->
+    <path
+        android:pathData="M45,58 L63,58 Q65,58 65,60 L65,63 Q65,65 63,65 L45,65 Q43,65 43,63 L43,60 Q43,58 45,58 Z"
+        android:fillColor="#f093fb"/>
+
+    <!-- File lines -->
+    <path
+        android:pathData="M38,70 L70,70"
+        android:strokeColor="#667eea"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="0.5"/>
+    <path
+        android:pathData="M38,75 L62,75"
+        android:strokeColor="#764ba2"
+        android:strokeWidth="1.5"
+        android:strokeAlpha="0.4"/>
+</vector>
