@@ -31,15 +31,15 @@ class ApiClient {
     private val client = HttpClient(OkHttp) {
         engine {
             config {
-                connectTimeout(20, TimeUnit.SECONDS)
-                readTimeout(20, TimeUnit.SECONDS)
-                writeTimeout(20, TimeUnit.SECONDS)
+                connectTimeout(60, TimeUnit.SECONDS)
+                readTimeout(60, TimeUnit.SECONDS)
+                writeTimeout(60, TimeUnit.SECONDS)
             }
         }
         install(HttpTimeout) {
-            requestTimeoutMillis = 20_000
-            connectTimeoutMillis = 20_000
-            socketTimeoutMillis = 20_000
+            requestTimeoutMillis = 60_000
+            connectTimeoutMillis = 60_000
+            socketTimeoutMillis = 60_000
         }
         install(ContentNegotiation) {
             json(json)
