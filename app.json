@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "version_code": 1,
-  "changelog": "Initial release",
+  "version": "1.0.1",
+  "version_code": 2,
+  "changelog": "UI improvements: download/copy buttons, pagination, scroll-to-top, loading overlay, 60s timeout",
   "force_update": false
 }
