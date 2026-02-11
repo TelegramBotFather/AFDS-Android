@@ -9,6 +9,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -238,7 +239,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSetupNeeded: () -> Unit = onLoginS
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
-                                        Icons.Default.Send,
+                                        Icons.AutoMirrored.Filled.Send,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.secondary,
                                         modifier = Modifier.size(20.dp)
@@ -392,7 +393,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSetupNeeded: () -> Unit = onLoginS
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !isLoading
                         ) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Back to Email")
                         }
