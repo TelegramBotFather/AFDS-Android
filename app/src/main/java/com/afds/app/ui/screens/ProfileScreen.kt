@@ -377,12 +377,29 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Setup instructions info box
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("📋 How to setup:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("1. Add @LinkerXHelperbot to your channel as admin with full permissions", style = MaterialTheme.typography.bodySmall)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("2. Run the /setup command in your channel", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("3. Enter your Channel ID below (e.g. -1001234567890)", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     if (channelId != null) {
                         Text("Current Channel ID", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(channelId!!, style = MaterialTheme.typography.bodyLarge)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "Files will be sent directly to this channel. Make sure @TGID1OO1Bot is an admin in your channel.",
+                            "✅ Files will be sent directly to this channel.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -450,7 +467,7 @@ fun ProfileScreen(
                         }
                     } else {
                         Text(
-                            "Set your Telegram Channel ID to receive files directly in your channel. The bot @TGID1OO1Bot must be an admin in the channel.",
+                            "Set your Telegram Channel ID to receive files directly in your channel.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
