@@ -97,9 +97,11 @@ data class AuthResponse(
 
 @Serializable
 data class ProfileResponse(
+    val id: Int? = null,
     val email: String? = null,
     @SerialName("memberSince") val memberSince: String? = null,
     @SerialName("user_id") val userId: String? = null,
+    @SerialName("user_id_updated_at") val userIdUpdatedAt: String? = null,
     @SerialName("channel_id") val channelId: String? = null,
     val error: String? = null
 )

@@ -28,7 +28,7 @@ import com.afds.app.util.normalizeEmail
 import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(onLoginSuccess: () -> Unit, onSetupNeeded: () -> Unit = onLoginSuccess) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -304,13 +304,15 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                         val response = apiClient.verifyLoginOtp(normalizedEmail, otp)
                                         if (response.token != null) {
                                             sessionManager.saveToken(response.token)
-                                            // Fetch and store profile data
+                                            // Fetch and store profile data, check if setup needed
+                                            var needsSetup = true
                                             try {
                                                 val profile = apiClient.getProfile(response.token)
                                                 sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
+                                                needsSetup = profile.userId.isNullOrBlank() || profile.channelId.isNullOrBlank()
                                             } catch (_: Exception) { /* Profile fetch optional at login */ }
                                             Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
-                                            onLoginSuccess()
+                                            if (needsSetup) onSetupNeeded() else onLoginSuccess()
                                         } else {
                                             errorMessage = "Verification failed"
                                         }

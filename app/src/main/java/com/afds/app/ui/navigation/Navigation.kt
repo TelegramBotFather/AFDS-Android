@@ -45,7 +45,11 @@ fun AFDSNavHost(navController: NavHostController) {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    // Check if setup is needed
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                },
+                onSetupNeeded = {
                     navController.navigate(Routes.SETUP) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
