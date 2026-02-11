@@ -126,7 +126,7 @@ Setting is stored locally per device.
 
 ## Version
 
-- **Current**: 1.0.3 (versionCode 4)
+- **Current**: 1.0.4 (versionCode 5)
 - **Package**: `com.afds.app`
 
 ## License

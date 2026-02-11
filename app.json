@@ -1,6 +1,6 @@
 {
-  "version": "1.0.3",
-  "version_code": 4,
-  "changelog": "AGP 9.0 compatibility, deprecation fixes, Gradle 9.0 support",
+  "version": "1.0.4",
+  "version_code": 5,
+  "changelog": "Fixed MyFiles, music details, mixed JSON type handling across all categories",
   "force_update": false
 }
