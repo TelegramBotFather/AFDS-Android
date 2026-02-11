@@ -258,7 +258,7 @@ class ApiClient {
 
     suspend fun getMyFiles(token: String, page: Int = 1): SearchResponse {
         Log.d("AFDS_API", "getMyFiles: page=$page")
-        val response = client.get("$BASE_URL/my-files/index") {
+        val response = client.get("$BASE_URL/user/my-files") {
             header("Authorization", "Bearer $token")
             parameter("page", page)
         }
