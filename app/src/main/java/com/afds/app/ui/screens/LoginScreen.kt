@@ -304,6 +304,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                                         val response = apiClient.verifyLoginOtp(normalizedEmail, otp)
                                         if (response.token != null) {
                                             sessionManager.saveToken(response.token)
+                                            // Fetch and store profile data
+                                            try {
+                                                val profile = apiClient.getProfile(response.token)
+                                                sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
+                                            } catch (_: Exception) { /* Profile fetch optional at login */ }
                                             Toast.makeText(context, "Welcome back!", Toast.LENGTH_SHORT).show()
                                             onLoginSuccess()
                                         } else {

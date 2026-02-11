@@ -12,6 +12,7 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import android.util.Log
+import com.afds.app.data.local.CacheManager
 import kotlinx.serialization.json.Json
 import java.util.concurrent.TimeUnit
 
@@ -103,6 +104,8 @@ class ApiClient {
     // ---- Search & Browse ----
 
     suspend fun searchFiles(category: String, query: String, page: Int = 1): SearchResponse {
+        val cacheKey = CacheManager.searchKey(category, query, page)
+        CacheManager.get<SearchResponse>(cacheKey)?.let { return it }
         Log.d("AFDS_API", "searchFiles: category=$category, query=$query, page=$page")
         val response = client.get("$BASE_URL/$category/search") {
             parameter("q", query)
@@ -119,10 +122,13 @@ class ApiClient {
             val f = result.files[0]
             Log.d("AFDS_API", "First file: id=${f.id}, fileId=${f.fileId}, effectiveId=${f.effectiveId}, name=${f.fileName}")
         }
+        CacheManager.put(cacheKey, result)
         return result
     }
 
     suspend fun browseFiles(category: String, page: Int = 1): SearchResponse {
+        val cacheKey = CacheManager.browseKey(category, page)
+        CacheManager.get<SearchResponse>(cacheKey)?.let { return it }
         Log.d("AFDS_API", "browseFiles: category=$category, page=$page")
         val response = client.get("$BASE_URL/$category/index") {
             parameter("page", page)
@@ -133,7 +139,9 @@ class ApiClient {
         }
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "browseFiles raw response (first 500): ${bodyText.take(500)}")
-        return json.decodeFromString<SearchResponse>(bodyText)
+        val browseResult = json.decodeFromString<SearchResponse>(bodyText)
+        CacheManager.put(cacheKey, browseResult)
+        return browseResult
     }
 
     suspend fun getFileDetails(category: String, fileId: String): FileDetails {
@@ -258,6 +266,8 @@ class ApiClient {
     }
 
     suspend fun getMyFiles(token: String, page: Int = 1): SearchResponse {
+        val cacheKey = CacheManager.myFilesKey(page)
+        CacheManager.get<SearchResponse>(cacheKey)?.let { return it }
         Log.d("AFDS_API", "getMyFiles: page=$page")
         val response = client.get("$BASE_URL/user/my-files") {
             header("Authorization", "Bearer $token")
@@ -268,7 +278,9 @@ class ApiClient {
         }
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "getMyFiles raw response (first 500): ${bodyText.take(500)}")
-        return json.decodeFromString<SearchResponse>(bodyText)
+        val myFilesResult = json.decodeFromString<SearchResponse>(bodyText)
+        CacheManager.put(cacheKey, myFilesResult)
+        return myFilesResult
     }
 
     // ---- Channel ----

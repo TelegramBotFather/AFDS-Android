@@ -20,6 +20,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.afds.app.AFDSApplication
 import com.afds.app.R
+import android.widget.Toast
+import com.afds.app.data.local.CacheManager
 import com.afds.app.data.model.AppUpdateInfo
 import com.afds.app.data.model.FileCategory
 import com.afds.app.util.UpdateManager
@@ -86,6 +88,22 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ),
                 actions = {
+                    // Refresh profile
+                    IconButton(onClick = {
+                        scope.launch {
+                            try {
+                                val token = sessionManager.getToken() ?: return@launch
+                                val profile = apiClient.getProfile(token)
+                                sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
+                                CacheManager.invalidateAll()
+                                Toast.makeText(context, "Profile refreshed!", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Refresh failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh Profile")
+                    }
                     IconButton(onClick = onProfile) {
                         Icon(Icons.Default.Person, contentDescription = "Profile")
                     }

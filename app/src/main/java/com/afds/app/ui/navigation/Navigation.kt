@@ -14,6 +14,7 @@ import com.afds.app.ui.screens.*
 
 object Routes {
     const val LOGIN = "login"
+    const val SETUP = "setup"
     const val HOME = "home"
     const val SEARCH = "search?query={query}&category={category}"
     const val BROWSE = "browse/{category}"
@@ -32,15 +33,37 @@ object Routes {
 fun AFDSNavHost(navController: NavHostController) {
     val sessionManager = AFDSApplication.instance.sessionManager
     val isLoggedIn by sessionManager.isLoggedIn.collectAsState(initial = false)
+    val isSetupComplete by sessionManager.isSetupComplete.collectAsState(initial = false)
 
-    val startDestination = if (isLoggedIn) Routes.HOME else Routes.LOGIN
+    val startDestination = when {
+        !isLoggedIn -> Routes.LOGIN
+        !isSetupComplete -> Routes.SETUP
+        else -> Routes.HOME
+    }
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable(Routes.LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(Routes.HOME) {
+                    // Check if setup is needed
+                    navController.navigate(Routes.SETUP) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Routes.SETUP) {
+            SetupScreen(
+                onSetupComplete = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(Routes.SETUP) { inclusive = true }
+                    }
+                },
+                onRefreshProfile = { /* handled inside SetupScreen */ },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(0) { inclusive = true }
                     }
                 }
             )

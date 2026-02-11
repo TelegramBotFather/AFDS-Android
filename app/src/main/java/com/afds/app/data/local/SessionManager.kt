@@ -20,6 +20,9 @@ class SessionManager(private val context: Context) {
         private val MIX_MEDIA_ENABLED = booleanPreferencesKey("mix_media_enabled")
         private val SHOW_MY_FILES = booleanPreferencesKey("show_my_files")
         private val CHANNEL_ID = stringPreferencesKey("channel_id")
+        private val USER_EMAIL = stringPreferencesKey("user_email")
+        private val USER_ID = stringPreferencesKey("user_id")
+        private val PROFILE_SETUP_COMPLETE = booleanPreferencesKey("profile_setup_complete")
         private const val THIRTY_DAYS_MS = 30L * 24 * 60 * 60 * 1000
     }
 
@@ -36,6 +39,13 @@ class SessionManager(private val context: Context) {
     val mixMediaEnabled: Flow<Boolean> = context.dataStore.data.map { it[MIX_MEDIA_ENABLED] ?: false }
     val showMyFiles: Flow<Boolean> = context.dataStore.data.map { it[SHOW_MY_FILES] ?: false }
     val channelId: Flow<String?> = context.dataStore.data.map { it[CHANNEL_ID] }
+    val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID] }
+    val userEmail: Flow<String?> = context.dataStore.data.map { it[USER_EMAIL] }
+    val isSetupComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        val uid = prefs[USER_ID]
+        val cid = prefs[CHANNEL_ID]
+        !uid.isNullOrBlank() && !cid.isNullOrBlank()
+    }
 
     suspend fun getToken(): String? {
         val prefs = context.dataStore.data.first()
@@ -87,6 +97,26 @@ class SessionManager(private val context: Context) {
             } else {
                 it.remove(CHANNEL_ID)
             }
+        }
+    }
+
+    suspend fun setUserId(userId: String?) {
+        context.dataStore.edit {
+            if (userId != null) it[USER_ID] = userId else it.remove(USER_ID)
+        }
+    }
+
+    suspend fun setUserEmail(email: String?) {
+        context.dataStore.edit {
+            if (email != null) it[USER_EMAIL] = email else it.remove(USER_EMAIL)
+        }
+    }
+
+    suspend fun saveProfileData(email: String?, userId: String?, channelId: String?) {
+        context.dataStore.edit { prefs ->
+            if (email != null) prefs[USER_EMAIL] = email
+            if (userId != null) prefs[USER_ID] = userId
+            if (channelId != null) prefs[CHANNEL_ID] = channelId
         }
     }
 }
