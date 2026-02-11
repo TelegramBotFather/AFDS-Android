@@ -43,7 +43,7 @@ data class FileItem(
     val effectiveId: String get() = fileId ?: idString ?: ""
     val fileSizeLong: Long get() = fileSize.toLongSafe() ?: 0L
     val effectiveCategory: String get() {
-        val raw = category ?: sourceTable ?: "files"
+        val raw = category ?: sourceTable ?: return ""
         return TABLE_TO_SHORT_MAP[raw] ?: raw
     }
 
