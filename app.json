@@ -1,6 +1,6 @@
 {
-  "version": "1.0.2",
-  "version_code": 3,
-  "changelog": "Channel setup, 1DM integration, cache layer, no-internet detection, account-not-found handling",
+  "version": "1.0.3",
+  "version_code": 4,
+  "changelog": "AGP 9.0 compatibility, deprecation fixes, Gradle 9.0 support",
   "force_update": false
 }
