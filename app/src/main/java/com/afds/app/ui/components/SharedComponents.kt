@@ -432,35 +432,18 @@ fun FileListContent(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Loading overlay with blur
+        // Loading overlay - spinner with dimmed background
         if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f))
-                    .blur(8.dp),
-            )
-            Box(
-                modifier = Modifier.fillMaxSize(),
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.4f)),
                 contentAlignment = Alignment.Center
             ) {
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(48.dp))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Loading...",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-                }
+                CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
 

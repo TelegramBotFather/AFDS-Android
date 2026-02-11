@@ -163,11 +163,21 @@ fun LoginScreen(onLoginSuccess: () -> Unit, onSetupNeeded: () -> Unit = onLoginS
                                     try {
                                         val normalizedEmail = normalizeEmail(email)
                                         val response = apiClient.requestLoginOtp(normalizedEmail)
-                                        loginType = response.loginType ?: "email"
-                                        botId = response.botId ?: ""
-                                        isEmailStep = false
+                                        if (response.error != null) {
+                                            // API returned an error (e.g. account not found)
+                                            errorMessage = response.error + "\n\nVisit https://afds.pages.dev to create an account."
+                                        } else {
+                                            loginType = response.loginType ?: "email"
+                                            botId = response.botId ?: ""
+                                            isEmailStep = false
+                                        }
                                     } catch (e: Exception) {
-                                        errorMessage = e.message ?: "Failed to send login code"
+                                        val msg = e.message ?: "Failed to send login code"
+                                        if (msg.contains("not found", ignoreCase = true) || msg.contains("not exist", ignoreCase = true) || msg.contains("no account", ignoreCase = true)) {
+                                            errorMessage = "Account not found.\n\nVisit https://afds.pages.dev to create an account."
+                                        } else {
+                                            errorMessage = msg
+                                        }
                                     } finally {
                                         isLoading = false
                                     }
