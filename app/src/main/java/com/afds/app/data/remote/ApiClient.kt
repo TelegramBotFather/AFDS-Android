@@ -257,6 +257,7 @@ class ApiClient {
     }
 
     suspend fun getMyFiles(token: String, page: Int = 1): SearchResponse {
+        Log.d("AFDS_API", "getMyFiles: page=$page")
         val response = client.get("$BASE_URL/my-files/index") {
             header("Authorization", "Bearer $token")
             parameter("page", page)
@@ -264,7 +265,9 @@ class ApiClient {
         if (response.status == HttpStatusCode.Unauthorized) {
             throw ApiException("Session expired", 401)
         }
-        return response.body()
+        val bodyText = response.bodyAsText()
+        Log.d("AFDS_API", "getMyFiles raw response (first 500): ${bodyText.take(500)}")
+        return json.decodeFromString<SearchResponse>(bodyText)
     }
 
     // ---- Update ----
