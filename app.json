@@ -2,5 +2,5 @@
   "version": "1.0.4",
   "version_code": 5,
   "changelog": "Fixed MyFiles, music details, mixed JSON type handling across all categories",
-  "force_update": false
+  "force_update": true
 }
