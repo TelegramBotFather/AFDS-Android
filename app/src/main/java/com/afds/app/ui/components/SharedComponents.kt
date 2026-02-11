@@ -33,6 +33,7 @@ import com.afds.app.AFDSApplication
 import com.afds.app.data.model.FileCategory
 import com.afds.app.data.model.FileDetails
 import com.afds.app.data.model.FileItem
+import com.afds.app.util.DownloadHelper
 import com.afds.app.util.formatBytes
 import kotlinx.coroutines.launch
 
@@ -82,6 +83,7 @@ fun FileCard(
     var isSaved by remember { mutableStateOf(false) }
     var isSendingToChannel by remember { mutableStateOf(false) }
     val userChannelId by sessionManager.channelId.collectAsState(initial = null)
+    val downloaderApp by sessionManager.downloaderApp.collectAsState(initial = "default")
 
     val fileId = file.effectiveId
     val category = file.effectiveCategory.ifEmpty { currentCategory }
@@ -281,15 +283,7 @@ fun FileCard(
                                     fileId
                                 )
                                 if (response.success && response.url != null) {
-                                    // Direct download using DownloadManager
-                                    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                                    val request = DownloadManager.Request(Uri.parse(response.url))
-                                        .setTitle(file.displayName)
-                                        .setDescription("Downloading from AFDS")
-                                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, file.displayName)
-                                    downloadManager.enqueue(request)
-                                    Toast.makeText(context, "Download started!", Toast.LENGTH_SHORT).show()
+                                    DownloadHelper.download(context, response.url, file.displayName, downloaderApp)
                                 } else {
                                     throw Exception(response.error ?: "Failed to generate link")
                                 }

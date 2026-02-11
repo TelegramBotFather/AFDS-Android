@@ -23,6 +23,7 @@ class SessionManager(private val context: Context) {
         private val USER_EMAIL = stringPreferencesKey("user_email")
         private val USER_ID = stringPreferencesKey("user_id")
         private val PROFILE_SETUP_COMPLETE = booleanPreferencesKey("profile_setup_complete")
+        private val DOWNLOADER_APP = stringPreferencesKey("downloader_app")
         private const val THIRTY_DAYS_MS = 30L * 24 * 60 * 60 * 1000
     }
 
@@ -41,6 +42,8 @@ class SessionManager(private val context: Context) {
     val channelId: Flow<String?> = context.dataStore.data.map { it[CHANNEL_ID] }
     val userId: Flow<String?> = context.dataStore.data.map { it[USER_ID] }
     val userEmail: Flow<String?> = context.dataStore.data.map { it[USER_EMAIL] }
+    val downloaderApp: Flow<String> = context.dataStore.data.map { it[DOWNLOADER_APP] ?: "default" }
+
     val isSetupComplete: Flow<Boolean> = context.dataStore.data.map { prefs ->
         val uid = prefs[USER_ID]
         val cid = prefs[CHANNEL_ID]
@@ -110,6 +113,14 @@ class SessionManager(private val context: Context) {
         context.dataStore.edit {
             if (email != null) it[USER_EMAIL] = email else it.remove(USER_EMAIL)
         }
+    }
+
+    suspend fun setDownloaderApp(app: String) {
+        context.dataStore.edit { it[DOWNLOADER_APP] = app }
+    }
+
+    suspend fun getDownloaderApp(): String {
+        return context.dataStore.data.first()[DOWNLOADER_APP] ?: "default"
     }
 
     suspend fun saveProfileData(email: String?, userId: String?, channelId: String?) {

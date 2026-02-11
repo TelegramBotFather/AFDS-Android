@@ -509,6 +509,62 @@ fun ProfileScreen(
                 }
             }
 
+            // Downloader App Selection
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Download App", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Choose which app to use for downloading files. Stored locally per device.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val currentDownloader by sessionManager.downloaderApp.collectAsState(initial = "default")
+                    val downloaderOptions = listOf(
+                        "default" to "Built-in (Default)",
+                        "1dm" to "1DM",
+                        "1dm_plus" to "1DM+",
+                        "1dm_lite" to "1DM Lite"
+                    )
+
+                    downloaderOptions.forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = currentDownloader == key,
+                                onClick = {
+                                    scope.launch { sessionManager.setDownloaderApp(key) }
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(label, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    if (currentDownloader != "default") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "⚠️ Make sure the selected app is installed on your device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
             // Content Preferences
             Card(
                 modifier = Modifier.fillMaxWidth(),
