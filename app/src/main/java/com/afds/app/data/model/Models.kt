@@ -100,6 +100,7 @@ data class ProfileResponse(
     val email: String? = null,
     @SerialName("memberSince") val memberSince: String? = null,
     @SerialName("user_id") val userId: String? = null,
+    @SerialName("channel_id") val channelId: String? = null,
     val error: String? = null
 )
 
@@ -130,6 +131,24 @@ data class SaveFileRequest(
 
 @Serializable
 data class MessageResponse(
+    val message: String? = null,
+    val error: String? = null
+)
+
+@Serializable
+data class SetChannelIdRequest(
+    @SerialName("channel_id") val channelId: String
+)
+
+@Serializable
+data class SendToChannelRequest(
+    @SerialName("unique_id") val uniqueId: String,
+    @SerialName("channel_id") val channelId: String
+)
+
+@Serializable
+data class SendToChannelResponse(
+    val success: Boolean = false,
     val message: String? = null,
     val error: String? = null
 )

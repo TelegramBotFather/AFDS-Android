@@ -80,6 +80,8 @@ fun FileCard(
     var isCopying by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var isSaved by remember { mutableStateOf(false) }
+    var isSendingToChannel by remember { mutableStateOf(false) }
+    val userChannelId by sessionManager.channelId.collectAsState(initial = null)
 
     val fileId = file.effectiveId
     val category = file.effectiveCategory.ifEmpty { currentCategory }
@@ -178,22 +180,49 @@ fun FileCard(
                     }
                 }
 
-                // Telegram button
+                // Telegram / Send to Channel button
                 IconButton(
                     onClick = {
                         if (fileId.isEmpty()) {
                             Toast.makeText(context, "Invalid file ID", Toast.LENGTH_SHORT).show()
                             return@IconButton
                         }
-                        val url = catEnum.getTelegramBotUrl(fileId)
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }
+                        val channelIdVal = userChannelId
+                        if (channelIdVal != null && channelIdVal.isNotEmpty()) {
+                            // Send to channel
+                            scope.launch {
+                                isSendingToChannel = true
+                                try {
+                                    val uniqueId = catEnum.getTelegramPrefix(fileId)
+                                    val response = apiClient.sendToChannel(uniqueId, channelIdVal)
+                                    if (response.success) {
+                                        Toast.makeText(context, "Sent to channel!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        throw Exception(response.error ?: response.message ?: "Failed to send")
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, e.message ?: "Failed to send to channel", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    isSendingToChannel = false
+                                }
+                            }
+                        } else {
+                            // Open bot URL
+                            val url = catEnum.getTelegramBotUrl(fileId)
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        }
+                    },
+                    enabled = !isSendingToChannel
                 ) {
-                    Icon(
-                        Icons.Default.Send,
-                        contentDescription = "Telegram",
-                        tint = MaterialTheme.colorScheme.secondary
-                    )
+                    if (isSendingToChannel) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            if (userChannelId != null) Icons.Default.Podcasts else Icons.Default.Send,
+                            contentDescription = if (userChannelId != null) "Send to Channel" else "Telegram",
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
 
                 // Copy link button

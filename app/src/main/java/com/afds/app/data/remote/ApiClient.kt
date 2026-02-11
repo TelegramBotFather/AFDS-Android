@@ -19,6 +19,7 @@ class ApiClient {
 
     companion object {
         const val BASE_URL = "https://tga-hd.api.hashhackers.com"
+        const val FILE_DELIVERY_URL = "https://tgarchiveapifilecopyandlinkgen.hashhackersapi.workers.dev"
         const val GOOGLE_CLIENT_ID = "58094879805-2k4u6f17pfn7fm68kg31fcr4ah7slm0d.apps.googleusercontent.com"
         const val APK_BASE_URL = "https://afds.apks.zindex.eu.org/com.afds.app"
     }
@@ -268,6 +269,49 @@ class ApiClient {
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "getMyFiles raw response (first 500): ${bodyText.take(500)}")
         return json.decodeFromString<SearchResponse>(bodyText)
+    }
+
+    // ---- Channel ----
+
+    suspend fun setChannelId(token: String, channelId: String): MessageResponse {
+        val response = client.post("$BASE_URL/profile/set-channel-id") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $token")
+            setBody(SetChannelIdRequest(channelId))
+        }
+        if (response.status == HttpStatusCode.Unauthorized) {
+            throw ApiException("Session expired", 401)
+        }
+        if (!response.status.isSuccess()) {
+            val error: MessageResponse = response.body()
+            throw ApiException(error.error ?: "Failed to set channel ID", response.status.value)
+        }
+        return response.body()
+    }
+
+    suspend fun removeChannelId(token: String): MessageResponse {
+        val response = client.delete("$BASE_URL/profile/remove-channel-id") {
+            header("Authorization", "Bearer $token")
+        }
+        if (response.status == HttpStatusCode.Unauthorized) {
+            throw ApiException("Session expired", 401)
+        }
+        if (!response.status.isSuccess()) {
+            val error: MessageResponse = response.body()
+            throw ApiException(error.error ?: "Failed to remove channel ID", response.status.value)
+        }
+        return response.body()
+    }
+
+    suspend fun sendToChannel(uniqueId: String, channelId: String): SendToChannelResponse {
+        Log.d("AFDS_API", "sendToChannel: uniqueId=$uniqueId, channelId=$channelId")
+        val response = client.post("$FILE_DELIVERY_URL/sendToChannel") {
+            contentType(ContentType.Application.Json)
+            setBody(SendToChannelRequest(uniqueId, channelId))
+        }
+        val bodyText = response.bodyAsText()
+        Log.d("AFDS_API", "sendToChannel response: $bodyText")
+        return json.decodeFromString<SendToChannelResponse>(bodyText)
     }
 
     // ---- Update ----

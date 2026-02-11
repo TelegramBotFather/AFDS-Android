@@ -19,6 +19,7 @@ class SessionManager(private val context: Context) {
         private val NSFW_ENABLED = booleanPreferencesKey("nsfw_enabled")
         private val MIX_MEDIA_ENABLED = booleanPreferencesKey("mix_media_enabled")
         private val SHOW_MY_FILES = booleanPreferencesKey("show_my_files")
+        private val CHANNEL_ID = stringPreferencesKey("channel_id")
         private const val THIRTY_DAYS_MS = 30L * 24 * 60 * 60 * 1000
     }
 
@@ -34,6 +35,7 @@ class SessionManager(private val context: Context) {
     val nsfwEnabled: Flow<Boolean> = context.dataStore.data.map { it[NSFW_ENABLED] ?: false }
     val mixMediaEnabled: Flow<Boolean> = context.dataStore.data.map { it[MIX_MEDIA_ENABLED] ?: false }
     val showMyFiles: Flow<Boolean> = context.dataStore.data.map { it[SHOW_MY_FILES] ?: false }
+    val channelId: Flow<String?> = context.dataStore.data.map { it[CHANNEL_ID] }
 
     suspend fun getToken(): String? {
         val prefs = context.dataStore.data.first()
@@ -72,5 +74,19 @@ class SessionManager(private val context: Context) {
 
     suspend fun setShowMyFiles(enabled: Boolean) {
         context.dataStore.edit { it[SHOW_MY_FILES] = enabled }
+    }
+
+    suspend fun getChannelId(): String? {
+        return context.dataStore.data.first()[CHANNEL_ID]
+    }
+
+    suspend fun setChannelId(channelId: String?) {
+        context.dataStore.edit {
+            if (channelId != null) {
+                it[CHANNEL_ID] = channelId
+            } else {
+                it.remove(CHANNEL_ID)
+            }
+        }
     }
 }

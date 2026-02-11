@@ -52,6 +52,11 @@ fun ProfileScreen(
     var telegramInput by remember { mutableStateOf("") }
     var isSettingTelegram by remember { mutableStateOf(false) }
 
+    // Channel
+    var channelId by remember { mutableStateOf<String?>(null) }
+    var channelInput by remember { mutableStateOf("") }
+    var isSettingChannel by remember { mutableStateOf(false) }
+
     // Preferences
     val nsfwEnabled by sessionManager.nsfwEnabled.collectAsState(initial = false)
     val mixMediaEnabled by sessionManager.mixMediaEnabled.collectAsState(initial = false)
@@ -68,6 +73,11 @@ fun ProfileScreen(
             email = profile.email ?: "Unknown"
             memberSince = profile.memberSince ?: "Unknown"
             telegramId = profile.userId
+            channelId = profile.channelId
+            // Save channel ID locally
+            if (profile.channelId != null) {
+                sessionManager.setChannelId(profile.channelId)
+            }
         } catch (e: ApiException) {
             if (e.statusCode == 401) {
                 sessionManager.clearSession()
@@ -343,6 +353,140 @@ fun ProfileScreen(
                             } else {
                                 Text("Connect Telegram ID")
                             }
+                        }
+                    }
+                }
+            }
+
+            // Telegram Channel (Direct File Delivery)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Podcasts, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Telegram Channel", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Direct File Delivery",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    if (channelId != null) {
+                        Text("Current Channel ID", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(channelId!!, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Files will be sent directly to this channel. Make sure @TGID1OO1Bot is an admin in your channel.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = channelInput,
+                            onValueChange = { channelInput = it },
+                            label = { Text("New Channel ID") },
+                            placeholder = { Text("-1001234567890") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isSettingChannel = true
+                                        try {
+                                            val token = sessionManager.getToken() ?: return@launch
+                                            apiClient.setChannelId(token, channelInput)
+                                            channelId = channelInput
+                                            sessionManager.setChannelId(channelInput)
+                                            channelInput = ""
+                                            Toast.makeText(context, "Channel ID updated!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isSettingChannel = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSettingChannel && channelInput.isNotBlank()
+                            ) {
+                                if (isSettingChannel) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                else Text("Update")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        isSettingChannel = true
+                                        try {
+                                            val token = sessionManager.getToken() ?: return@launch
+                                            apiClient.removeChannelId(token)
+                                            channelId = null
+                                            sessionManager.setChannelId(null)
+                                            Toast.makeText(context, "Channel ID removed!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isSettingChannel = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSettingChannel,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Remove")
+                            }
+                        }
+                    } else {
+                        Text(
+                            "Set your Telegram Channel ID to receive files directly in your channel. The bot @TGID1OO1Bot must be an admin in the channel.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = channelInput,
+                            onValueChange = { channelInput = it },
+                            label = { Text("Channel ID") },
+                            placeholder = { Text("-1001234567890") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isSettingChannel = true
+                                    try {
+                                        val token = sessionManager.getToken() ?: return@launch
+                                        apiClient.setChannelId(token, channelInput)
+                                        channelId = channelInput
+                                        sessionManager.setChannelId(channelInput)
+                                        channelInput = ""
+                                        Toast.makeText(context, "Channel ID saved!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                    } finally {
+                                        isSettingChannel = false
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSettingChannel && channelInput.isNotBlank()
+                        ) {
+                            if (isSettingChannel) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            else Text("Save Channel ID")
                         }
                     }
                 }
