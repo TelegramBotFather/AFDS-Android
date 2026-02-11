@@ -361,7 +361,7 @@ fun FileDetailDialog(
                         if (details.fileSizeLong > 0) {
                             DetailRow("File Size", formatBytes(details.fileSizeLong))
                         }
-                        details.mimeType?.let {
+                        details.effectiveMimeType?.let {
                             DetailRow("MIME Type", it)
                         }
                         details.caption?.let {

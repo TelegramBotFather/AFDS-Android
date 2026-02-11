@@ -60,12 +60,16 @@ data class FileItem(
 @Serializable
 data class FileDetails(
     val id: String? = null,
+    @SerialName("unique_id") val uniqueId: String? = null,
     @SerialName("file_name") val fileName: String? = null,
     @SerialName("file_size") val fileSize: JsonElement? = null,
+    @SerialName("file_size_bytes") val fileSizeBytes: JsonElement? = null,
     @SerialName("mime_type") val mimeType: String? = null,
+    @SerialName("file_type") val fileType: String? = null,
     val caption: String? = null
 ) {
-    val fileSizeLong: Long get() = fileSize.toLongSafe() ?: 0L
+    val fileSizeLong: Long get() = fileSizeBytes.toLongSafe() ?: fileSize.toLongSafe() ?: 0L
+    val effectiveMimeType: String? get() = mimeType ?: fileType
 }
 
 @Serializable
