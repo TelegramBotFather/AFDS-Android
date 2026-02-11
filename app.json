@@ -1,6 +1,6 @@
 {
-  "version": "1.0.1",
-  "version_code": 2,
-  "changelog": "UI improvements: download/copy buttons, pagination, scroll-to-top, loading overlay, 60s timeout",
+  "version": "1.0.2",
+  "version_code": 3,
+  "changelog": "Channel setup, 1DM integration, cache layer, no-internet detection, account-not-found handling",
   "force_update": false
 }

@@ -1,18 +1,23 @@
 # AFDS Android
 
-Android client for **AFDS (Advanced File Discovery System)** — search, browse, and manage files from a massive media archive.
+Android client for **AFDS (Advanced File Discovery System)** — search, browse, and manage files from a massive media archive with direct Telegram channel delivery.
 
 ## Features
 
 - 🔐 **Authentication** — Email + OTP login with Telegram/Email delivery
-- 🔍 **Search** — Search across Media, Music, NSFW, and Mix Media categories
+- 🔍 **Search** — Search across Media, Music, and Mix Media categories
 - 📂 **Browse** — Paginated file browsing by category
-- 📋 **File Actions** — Download links (copied to clipboard), Telegram bot integration, save to My Files
+- 📋 **File Actions** — Download, copy link, send to Telegram channel, save to My Files
+- 📡 **Telegram Channel Delivery** — Send files directly to your Telegram channel via @LinkerXHelperbot
+- 📥 **1DM Integration** — Download with 1DM, 1DM+, or 1DM Lite (configurable per device)
 - ℹ️ **File Details** — View file name, size, MIME type, and caption
-- 👤 **Profile Management** — Change password, email, Telegram ID, content preferences
+- 👤 **Profile Management** — Change password, email, Telegram ID, channel ID, downloader app
 - 📁 **My Files** — Access saved files collection
 - 🔄 **Auto-Update** — Checks for new versions on launch, downloads and installs APK updates
-- 🎨 **Material 3** — Modern dark/light theme with purple gradient branding
+- 📶 **No Internet Detection** — Real-time connectivity monitoring with offline screen
+- ⚡ **60s Cache** — Search/browse results cached for 60 seconds to reduce API calls
+- 🎨 **Material 3** — Purple gradient theme matching AFDS website branding
+- 🛠️ **Forced Setup** — New users must configure Telegram User ID + Channel ID before using the app
 
 ## Tech Stack
 
@@ -30,31 +35,42 @@ Android client for **AFDS (Advanced File Discovery System)** — search, browse,
 ```
 app/src/main/java/com/afds/app/
 ├── AFDSApplication.kt              # App singleton with ApiClient & SessionManager
-├── MainActivity.kt                 # Entry point with Compose setup
+├── MainActivity.kt                 # Entry point, no-internet detection
 ├── data/
-│   ├── local/SessionManager.kt     # DataStore preferences (auth, settings)
-│   ├── model/Models.kt             # API data models (FileItem, SearchResponse, etc.)
-│   ├── model/UpdateModels.kt       # Auto-update model
-│   └── remote/ApiClient.kt         # Ktor HTTP client for all API calls
+│   ├── local/
+│   │   ├── CacheManager.kt         # 60-second in-memory cache
+│   │   └── SessionManager.kt       # DataStore preferences (auth, settings, profile)
+│   ├── model/
+│   │   ├── Models.kt               # API data models
+│   │   └── UpdateModels.kt         # Auto-update model
+│   └── remote/
+│       └── ApiClient.kt            # Ktor HTTP client for all API calls
 ├── ui/
-│   ├── components/SharedComponents.kt  # FileCard, FileDetailDialog, pagination
-│   ├── navigation/Navigation.kt        # Routes & NavHost
+│   ├── components/
+│   │   └── SharedComponents.kt     # FileCard, FileDetailDialog, pagination, loading
+│   ├── navigation/
+│   │   └── Navigation.kt           # Routes & NavHost (LOGIN→SETUP→HOME)
 │   ├── screens/
 │   │   ├── LoginScreen.kt          # Email + OTP authentication
-│   │   ├── HomeScreen.kt           # Search, browse, update check
+│   │   ├── SetupScreen.kt          # 4-step setup wizard (User ID + Channel)
+│   │   ├── HomeScreen.kt           # Search, browse, update check, refresh
 │   │   ├── SearchScreen.kt         # Search results with pagination
 │   │   ├── BrowseScreen.kt         # Category file browsing
-│   │   ├── ProfileScreen.kt        # Account & content settings
+│   │   ├── ProfileScreen.kt        # Account, Telegram, channel, downloader, preferences
 │   │   └── MyFilesScreen.kt        # Saved files list
-│   └── theme/Theme.kt              # Material 3 color scheme
+│   └── theme/
+│       └── Theme.kt                # Material 3 color scheme
 └── util/
-    ├── Utils.kt                    # formatBytes, normalizeEmail
-    └── UpdateManager.kt            # Version check, APK download & install
+    ├── DownloadHelper.kt            # 1DM / built-in download manager
+    ├── NetworkObserver.kt           # Real-time connectivity monitoring
+    ├── UpdateManager.kt             # Version check, APK download & install
+    └── Utils.kt                     # formatBytes, normalizeEmail
 ```
 
 ## API Integration
 
-**Base URL**: `https://tga-hd.api.hashhackers.com`
+**Main API**: `https://tga-hd.api.hashhackers.com`
+**File Delivery**: `https://tgarchiveapifilecopyandlinkgen.hashhackersapi.workers.dev`
 
 | Feature | Endpoint |
 |---------|----------|
@@ -70,25 +86,32 @@ app/src/main/java/com/afds/app/
 | Change Email | `POST /profile/change-email` |
 | Set Telegram ID | `POST /profile/set-user-id` |
 | Update Telegram ID | `PUT /profile/update-user-id` |
+| Set Channel ID | `POST /profile/set-channel-id` |
+| Remove Channel ID | `DELETE /profile/remove-channel-id` |
 | Save File | `POST /user/save-file` |
-| My Files | `GET /my-files/index?page=` |
+| My Files | `GET /user/my-files?page=` |
+| Send to Channel | `POST /sendToChannel` (File Delivery API) |
+
+## Telegram Channel Setup
+
+1. Add **@LinkerXHelperbot** to your channel as **admin** with full permissions
+2. Run the **/setup** command in your channel
+3. Enter your Channel ID in the app (e.g., `-1001234567890`)
+
+## 1DM Download Integration
+
+In **Profile → Download App**, select your preferred downloader:
+- **Built-in (Default)** — Android DownloadManager
+- **1DM** — `idm.internet.download.manager`
+- **1DM+** — `idm.internet.download.manager.plus`
+- **1DM Lite** — `idm.internet.download.manager.lite`
+
+Setting is stored locally per device.
 
 ## Auto-Update System
 
 **Update endpoint**: `https://afds.apks.zindex.eu.org/com.afds.app/app.json`
-
-```json
-{
-  "version": "1.0.0",
-  "version_code": 1,
-  "changelog": "Initial release",
-  "force_update": false
-}
-```
-
 **APK download**: `https://afds.apks.zindex.eu.org/com.afds.app/{version}.apk`
-
-The app compares its built-in `versionCode` with the remote `version_code`. If the remote is higher, an update dialog is shown. Set `force_update: true` for mandatory updates.
 
 ## Building
 
@@ -103,7 +126,7 @@ The app compares its built-in `versionCode` with the remote `version_code`. If t
 
 ## Version
 
-- **Current**: 1.0.0 (versionCode 1)
+- **Current**: 1.0.2 (versionCode 3)
 - **Package**: `com.afds.app`
 
 ## License
