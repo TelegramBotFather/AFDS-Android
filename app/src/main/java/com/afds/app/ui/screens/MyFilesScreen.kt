@@ -1,5 +1,6 @@
 package com.afds.app.ui.screens
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -49,6 +50,10 @@ fun MyFilesScreen(
                     return@launch
                 }
                 val response = apiClient.getMyFiles(token, page)
+                if (response.files.isNotEmpty()) {
+                    val f = response.files[0]
+                    Log.d("AFDS_MYFILES", "First file: id=${f.id}, fileId=${f.fileId}, effectiveId=${f.effectiveId}, category=${f.category}, effectiveCategory=${f.effectiveCategory}, fileName=${f.fileName}")
+                }
                 files = response.files
                 currentPage = response.currentPageInt
                 totalPages = response.totalPagesInt
