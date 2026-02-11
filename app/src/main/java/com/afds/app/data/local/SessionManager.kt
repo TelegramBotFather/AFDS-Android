@@ -24,7 +24,7 @@ class SessionManager(private val context: Context) {
         private val USER_ID = stringPreferencesKey("user_id")
         private val PROFILE_SETUP_COMPLETE = booleanPreferencesKey("profile_setup_complete")
         private val DOWNLOADER_APP = stringPreferencesKey("downloader_app")
-        private const val THIRTY_DAYS_MS = 30L * 24 * 60 * 60 * 1000
+        private const val SESSION_EXPIRY_MS = 28L * 24 * 60 * 60 * 1000 // 28 days
     }
 
     val authToken: Flow<String?> = context.dataStore.data.map { it[AUTH_TOKEN] }
@@ -33,7 +33,7 @@ class SessionManager(private val context: Context) {
         val tokenTime = prefs[TOKEN_TIME] ?: 0L
         if (token == null) return@map false
         val age = System.currentTimeMillis() - tokenTime
-        age < THIRTY_DAYS_MS
+        age < SESSION_EXPIRY_MS
     }
     val selectedCategory: Flow<String> = context.dataStore.data.map { it[SELECTED_CATEGORY] ?: "files" }
     val nsfwEnabled: Flow<Boolean> = context.dataStore.data.map { it[NSFW_ENABLED] ?: false }
@@ -55,7 +55,7 @@ class SessionManager(private val context: Context) {
         val token = prefs[AUTH_TOKEN] ?: return null
         val tokenTime = prefs[TOKEN_TIME] ?: 0L
         val age = System.currentTimeMillis() - tokenTime
-        if (age > THIRTY_DAYS_MS) {
+        if (age > SESSION_EXPIRY_MS) {
             clearSession()
             return null
         }
