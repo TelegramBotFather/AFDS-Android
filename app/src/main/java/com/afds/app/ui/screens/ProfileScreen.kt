@@ -361,7 +361,7 @@ fun ProfileScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // NSFW Toggle
+                    // NSFW Toggle (disabled for now)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -369,11 +369,12 @@ fun ProfileScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Show NSFW Content", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
-                            Text("Enable access to NSFW content", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Coming soon", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Switch(
-                            checked = nsfwEnabled,
-                            onCheckedChange = { scope.launch { sessionManager.setNsfwEnabled(it) } }
+                            checked = false,
+                            onCheckedChange = { /* Disabled for now */ },
+                            enabled = false
                         )
                     }
 

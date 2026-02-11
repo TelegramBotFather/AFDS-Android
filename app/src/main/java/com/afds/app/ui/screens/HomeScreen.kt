@@ -43,7 +43,8 @@ fun HomeScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(FileCategory.MEDIA) }
     var totalFilesCount by remember { mutableStateOf<String?>(null) }
-    val nsfwEnabled by sessionManager.nsfwEnabled.collectAsState(initial = false)
+    // NSFW disabled for now - force false regardless of stored preference
+    val nsfwEnabled = false
     val mixMediaEnabled by sessionManager.mixMediaEnabled.collectAsState(initial = false)
     val showMyFiles by sessionManager.showMyFiles.collectAsState(initial = false)
 
