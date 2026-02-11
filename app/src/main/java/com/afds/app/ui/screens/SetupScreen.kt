@@ -35,22 +35,58 @@ fun SetupScreen(
     var channelId by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
+    var isCheckingProfile by remember { mutableStateOf(true) }
     var step by remember { mutableIntStateOf(1) } // 1=user_id, 2=channel setup instructions, 3=channel_id, 4=wait
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Check current state
-    val storedUserId by sessionManager.userId.collectAsState(initial = null)
-    val storedChannelId by sessionManager.channelId.collectAsState(initial = null)
-
-    // Auto-advance if user_id already set
-    LaunchedEffect(storedUserId) {
-        if (!storedUserId.isNullOrBlank() && step == 1) {
-            step = 2
-        }
+    // Fetch profile on load to check if setup is already complete
+    LaunchedEffect(Unit) {
+        isCheckingProfile = true
+        try {
+            val token = sessionManager.getToken()
+            if (token != null) {
+                val profile = apiClient.getProfile(token)
+                sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
+                val hasUserId = !profile.userId.isNullOrBlank()
+                val hasChannelId = !profile.channelId.isNullOrBlank()
+                if (hasUserId && hasChannelId) {
+                    onSetupComplete()
+                    return@LaunchedEffect
+                } else if (hasUserId) {
+                    step = 2
+                }
+            }
+        } catch (_: Exception) { }
+        isCheckingProfile = false
     }
-    LaunchedEffect(storedChannelId) {
-        if (!storedChannelId.isNullOrBlank()) {
-            onSetupComplete()
+
+    fun refreshProfile() {
+        scope.launch {
+            isRefreshing = true
+            errorMessage = null
+            try {
+                val token = sessionManager.getToken() ?: return@launch
+                val profile = apiClient.getProfile(token)
+                sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
+                val hasUserId = !profile.userId.isNullOrBlank()
+                val hasChannelId = !profile.channelId.isNullOrBlank()
+                if (hasUserId && hasChannelId) {
+                    onSetupComplete()
+                } else if (hasUserId && !hasChannelId) {
+                    step = 2
+                    errorMessage = "Channel ID not set yet. Please complete the setup."
+                } else if (!hasUserId && hasChannelId) {
+                    step = 1
+                    errorMessage = "Telegram User ID not set yet."
+                } else {
+                    step = 1
+                    errorMessage = "Both User ID and Channel ID are missing."
+                }
+            } catch (e: Exception) {
+                errorMessage = "Failed to refresh: ${e.message}"
+            } finally {
+                isRefreshing = false
+            }
         }
     }
 
@@ -369,7 +405,26 @@ fun SetupScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Refresh Profile button
+            OutlinedButton(
+                onClick = { refreshProfile() },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isRefreshing && !isLoading
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Checking profile...")
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Refresh Profile")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Logout option
             TextButton(
