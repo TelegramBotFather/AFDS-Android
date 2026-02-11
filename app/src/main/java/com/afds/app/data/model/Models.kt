@@ -18,19 +18,30 @@ data class SearchResponse(
 
 @Serializable
 data class FileItem(
-    val id: String? = null,
+    val id: JsonElement? = null,
     @SerialName("file_id") val fileId: String? = null,
     @SerialName("file_name") val fileName: String? = null,
-    @SerialName("file_size") val fileSize: String? = null,
+    @SerialName("file_size") val fileSize: JsonElement? = null,
     @SerialName("mime_type") val mimeType: String? = null,
     val caption: String? = null,
     val category: String? = null,
     @SerialName("source_table") val sourceTable: String? = null,
-    @SerialName("user_id") val userId: String? = null
+    @SerialName("user_id") val userId: String? = null,
+    @SerialName("saved_at") val savedAt: String? = null
 ) {
     val displayName: String get() = fileName ?: caption ?: "Unnamed File"
-    val effectiveId: String get() = id ?: fileId ?: ""
-    val fileSizeLong: Long get() = fileSize?.toLongOrNull() ?: 0L
+    // Prefer file_id over id because:
+    // - Search results: id = telegram file ID (string), file_id = null
+    // - My Files results: id = DB row ID (number), file_id = telegram file ID (string)
+    val idString: String? get() {
+        if (id == null) return null
+        return when (id) {
+            is JsonPrimitive -> id.content
+            else -> null
+        }
+    }
+    val effectiveId: String get() = fileId ?: idString ?: ""
+    val fileSizeLong: Long get() = fileSize.toLongSafe() ?: 0L
     val effectiveCategory: String get() {
         val raw = category ?: sourceTable ?: "files"
         return TABLE_TO_SHORT_MAP[raw] ?: raw
@@ -50,11 +61,11 @@ data class FileItem(
 data class FileDetails(
     val id: String? = null,
     @SerialName("file_name") val fileName: String? = null,
-    @SerialName("file_size") val fileSize: String? = null,
+    @SerialName("file_size") val fileSize: JsonElement? = null,
     @SerialName("mime_type") val mimeType: String? = null,
     val caption: String? = null
 ) {
-    val fileSizeLong: Long get() = fileSize?.toLongOrNull() ?: 0L
+    val fileSizeLong: Long get() = fileSize.toLongSafe() ?: 0L
 }
 
 @Serializable
