@@ -22,7 +22,6 @@ import com.afds.app.AFDSApplication
 import com.afds.app.R
 import android.widget.Toast
 import com.afds.app.data.local.CacheManager
-import com.afds.app.data.model.AppUpdateInfo
 import com.afds.app.data.model.FileCategory
 import com.afds.app.util.UpdateManager
 import kotlinx.coroutines.launch
@@ -50,28 +49,10 @@ fun HomeScreen(
     val mixMediaEnabled by sessionManager.mixMediaEnabled.collectAsState(initial = false)
     val showMyFiles by sessionManager.showMyFiles.collectAsState(initial = false)
 
-    // Update check
-    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    var isDownloading by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    // Fetch total files count + check for updates
+    // Fetch total files count
     LaunchedEffect(Unit) {
-        // Check for updates
-        try {
-            val currentVersionCode = UpdateManager.getVersionCode(context)
-            val remoteInfo = apiClient.checkForUpdate()
-            // Show update if remote version_code is higher than current
-            if (remoteInfo.versionCode > currentVersionCode) {
-                updateInfo = remoteInfo
-                showUpdateDialog = true
-            }
-        } catch (_: Exception) {
-            // Silently ignore update check failures
-        }
-
-        // Fetch file count
         try {
             val response = apiClient.browseFiles("mix_media_files", 1)
             totalFilesCount = NumberFormat.getInstance().format(response.totalFilesInt)
@@ -362,87 +343,6 @@ fun HomeScreen(
         }
     }
 
-    // Update Dialog
-    if (showUpdateDialog && updateInfo != null) {
-        val update = updateInfo!!
-        AlertDialog(
-            onDismissRequest = {
-                if (!update.forceUpdate) showUpdateDialog = false
-            },
-            icon = {
-                Icon(
-                    Icons.Default.SystemUpdate,
-                    contentDescription = null,
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = {
-                Text("Update Available")
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Version ${update.version} is available!",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (update.changelog != null && update.changelog.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = update.changelog,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (update.forceUpdate) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "This update is required to continue using the app.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        isDownloading = true
-                        val downloadUrl = apiClient.getApkDownloadUrl(update.version)
-                        UpdateManager.downloadAndInstallUpdate(
-                            context,
-                            downloadUrl,
-                            update.version
-                        )
-                    },
-                    enabled = !isDownloading
-                ) {
-                    if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Downloading...")
-                    } else {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Update Now")
-                    }
-                }
-            },
-            dismissButton = {
-                if (!update.forceUpdate) {
-                    TextButton(onClick = { showUpdateDialog = false }) {
-                        Text("Later")
-                    }
-                }
-            }
-        )
-    }
 }
 
 private fun getVisibleCategoryCount(nsfwEnabled: Boolean, mixMediaEnabled: Boolean): Int {

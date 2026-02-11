@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,9 +16,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
+import com.afds.app.data.model.AppUpdateInfo
 import com.afds.app.ui.navigation.AFDSNavHost
 import com.afds.app.ui.theme.AFDSTheme
 import com.afds.app.util.NetworkObserver
+import com.afds.app.util.UpdateManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,7 +29,27 @@ class MainActivity : ComponentActivity() {
         setContent {
             AFDSTheme {
                 val context = LocalContext.current
-                val isOnline by NetworkObserver.observe(context).collectAsState(initial = NetworkObserver.isOnline(context))
+                val isOnline by NetworkObserver.observe(context)
+                    .collectAsState(initial = NetworkObserver.isOnline(context))
+
+                // Global update check — runs on app launch regardless of login state
+                var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+                var showUpdateDialog by remember { mutableStateOf(false) }
+                var isDownloadingUpdate by remember { mutableStateOf(false) }
+                val apiClient = AFDSApplication.instance.apiClient
+
+                LaunchedEffect(isOnline) {
+                    if (isOnline) {
+                        try {
+                            val currentVersionCode = UpdateManager.getVersionCode(context)
+                            val remoteInfo = apiClient.checkForUpdate()
+                            if (remoteInfo.versionCode > currentVersionCode) {
+                                updateInfo = remoteInfo
+                                showUpdateDialog = true
+                            }
+                        } catch (_: Exception) { }
+                    }
+                }
 
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -37,7 +59,6 @@ class MainActivity : ComponentActivity() {
                         val navController = rememberNavController()
                         AFDSNavHost(navController = navController)
                     } else {
-                        // No Internet Screen
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -67,6 +88,85 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                }
+
+                // Global Update Dialog — shows even on login screen
+                if (showUpdateDialog && updateInfo != null) {
+                    val update = updateInfo!!
+                    AlertDialog(
+                        onDismissRequest = {
+                            if (!update.forceUpdate) showUpdateDialog = false
+                        },
+                        icon = {
+                            Icon(
+                                Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        title = { Text("Update Available") },
+                        text = {
+                            Column {
+                                Text(
+                                    "Version ${update.version} is available!",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (update.changelog != null && update.changelog.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        update.changelog,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (update.forceUpdate) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(
+                                        "This update is required.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    isDownloadingUpdate = true
+                                    UpdateManager.downloadAndInstallUpdate(
+                                        context,
+                                        apiClient.getApkDownloadUrl(update.version),
+                                        update.version
+                                    )
+                                },
+                                enabled = !isDownloadingUpdate
+                            ) {
+                                if (isDownloadingUpdate) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Downloading...")
+                                } else {
+                                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Update Now")
+                                }
+                            }
+                        },
+                        dismissButton = {
+                            if (!update.forceUpdate) {
+                                TextButton(onClick = { showUpdateDialog = false }) {
+                                    Text("Later")
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
