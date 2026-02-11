@@ -215,7 +215,7 @@ fun FileCard(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
                         Icon(
-                            if (userChannelId != null) Icons.Default.Podcasts else Icons.Default.Send,
+                            if (userChannelId != null) Icons.Default.Podcasts else Icons.AutoMirrored.Filled.Send,
                             contentDescription = if (userChannelId != null) "Send to Channel" else "Telegram",
                             tint = MaterialTheme.colorScheme.secondary
                         )
