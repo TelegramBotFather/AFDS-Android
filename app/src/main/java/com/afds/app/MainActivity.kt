@@ -10,6 +10,8 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -129,6 +131,13 @@ class MainActivity : ComponentActivity() {
                                         color = MaterialTheme.colorScheme.error,
                                         fontWeight = FontWeight.Bold
                                     )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val manualUrl = apiClient.getApkDownloadUrl(update.version)
+                                TextButton(onClick = {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(manualUrl)))
+                                }) {
+                                    Text("📥 Manual download: ${update.version}.apk", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         },

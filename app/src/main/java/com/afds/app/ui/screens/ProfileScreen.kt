@@ -142,8 +142,8 @@ fun ProfileScreen(
                 }
             }
 
-            // Change Password
-            Card(
+            // Change Password (hidden for now)
+            /* Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
@@ -202,8 +202,10 @@ fun ProfileScreen(
                 }
             }
 
-            // Change Email
-            Card(
+            */ // End Change Password
+
+            // Change Email (hidden for now)
+            /* Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
             ) {
@@ -262,6 +264,8 @@ fun ProfileScreen(
                     }
                 }
             }
+
+            */ // End Change Email
 
             // Telegram Integration
             Card(
