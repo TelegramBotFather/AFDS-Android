@@ -17,6 +17,7 @@ import com.afds.app.data.remote.ApiException
 import com.afds.app.ui.components.AFDSTopBar
 import com.afds.app.ui.components.FileDetailDialog
 import com.afds.app.ui.components.FileListContent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,12 +35,33 @@ fun MyFilesScreen(
     var isLoading by remember { mutableStateOf(true) }
     var currentPage by remember { mutableIntStateOf(1) }
     var totalPages by remember { mutableIntStateOf(1) }
+    var showRemoveDialog by remember { mutableStateOf(false) }
+    var pendingRemoveFileId by remember { mutableStateOf("") }
+    var pendingRemoveCategory by remember { mutableStateOf("") }
 
     // File details dialog state
     var showDetailsDialog by remember { mutableStateOf(false) }
     var detailsLoading by remember { mutableStateOf(false) }
     var fileDetails by remember { mutableStateOf<FileDetails?>(null) }
     var detailsCategory by remember { mutableStateOf("") }
+
+    fun removeFile(fileId: String, category: String) {
+        scope.launch {
+            try {
+                val token = sessionManager.getToken() ?: run { onLogout(); return@launch }
+                apiClient.removeFile(token, fileId, category)
+                files = files.filter { it.effectiveId != fileId }
+                Toast.makeText(context, "File removed", Toast.LENGTH_SHORT).show()
+            } catch (e: ApiException) {
+                if (e.statusCode == 401) { sessionManager.clearSession(); onLogout() }
+                else Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Toast.makeText(context, e.message ?: "Failed to remove file", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     fun loadMyFiles(page: Int) {
         scope.launch {
@@ -64,6 +86,8 @@ fun MyFilesScreen(
                 } else {
                     Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Toast.makeText(context, e.message ?: "Failed to load files", Toast.LENGTH_SHORT).show()
             } finally {
@@ -113,7 +137,8 @@ fun MyFilesScreen(
                         detailsCategory = cat
                         fileDetails = null
                         try {
-                            fileDetails = apiClient.getFileDetails(cat, fileId)
+                            val token = sessionManager.getToken() ?: run { showDetailsDialog = false; return@launch }
+                            fileDetails = apiClient.getFileDetails(token, cat, fileId)
                         } catch (e: Exception) {
                             Toast.makeText(context, e.message ?: "Failed to load details", Toast.LENGTH_SHORT).show()
                             showDetailsDialog = false
@@ -123,7 +148,30 @@ fun MyFilesScreen(
                     }
                 },
                 showSaveButton = false,
+                onRemoveClick = { fileId, cat ->
+                    pendingRemoveFileId = fileId
+                    pendingRemoveCategory = cat
+                    showRemoveDialog = true
+                },
                 emptyMessage = "No saved files yet."
+            )
+        }
+
+        // Remove confirmation dialog
+        if (showRemoveDialog) {
+            AlertDialog(
+                onDismissRequest = { showRemoveDialog = false },
+                title = { Text("Remove File") },
+                text = { Text("Remove this file from your saved collection?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showRemoveDialog = false
+                        removeFile(pendingRemoveFileId, pendingRemoveCategory)
+                    }) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRemoveDialog = false }) { Text("Cancel") }
+                }
             )
         }
 

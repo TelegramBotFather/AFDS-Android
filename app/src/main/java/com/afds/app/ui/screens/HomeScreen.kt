@@ -49,13 +49,17 @@ fun HomeScreen(
     val nsfwEnabled = false
     val mixMediaEnabled by sessionManager.mixMediaEnabled.collectAsState(initial = false)
     val showMyFiles by sessionManager.showMyFiles.collectAsState(initial = false)
-
     val context = LocalContext.current
 
-    // Fetch total files count
+    // Check session validity and fetch total files count
     LaunchedEffect(Unit) {
+        if (sessionManager.getToken() == null) {
+            onLogout()
+            return@LaunchedEffect
+        }
         try {
-            val response = apiClient.browseFiles("mix_media_files", 1)
+            val token = sessionManager.getToken() ?: return@LaunchedEffect
+            val response = apiClient.browseFiles(token, "mix_media_files", 1)
             totalFilesCount = NumberFormat.getInstance().format(response.totalFilesInt)
         } catch (_: Exception) {
             totalFilesCount = "millions of"
@@ -108,7 +112,9 @@ fun HomeScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Logo
             Icon(

@@ -13,22 +13,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.afds.app.AFDSApplication
+import com.afds.app.data.model.AppUpdateInfo
+import com.afds.app.data.remote.ApiClient
 import com.afds.app.data.remote.ApiException
 import com.afds.app.ui.components.AFDSTopBar
+import com.afds.app.util.UpdateManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onAutoSetup: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val apiClient = AFDSApplication.instance.apiClient
     val sessionManager = AFDSApplication.instance.sessionManager
@@ -38,6 +49,16 @@ fun ProfileScreen(
     var memberSince by remember { mutableStateOf("Loading...") }
     var telegramId by remember { mutableStateOf<String?>(null) }
     var isProfileLoading by remember { mutableStateOf(true) }
+    var dailyLinksUsed by remember { mutableIntStateOf(0) }
+    var dailyLinksLimit by remember { mutableIntStateOf(100) }
+    var dailySendsUsed by remember { mutableIntStateOf(0) }
+    var dailySendsLimit by remember { mutableIntStateOf(50) }
+
+    // App update
+    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateChecked by remember { mutableStateOf(false) }
+    var isDownloadingUpdate by remember { mutableStateOf(false) }
 
     // Change password
     var currentPasswordPw by remember { mutableStateOf("") }
@@ -63,6 +84,18 @@ fun ProfileScreen(
     val mixMediaEnabled by sessionManager.mixMediaEnabled.collectAsState(initial = false)
     val showMyFiles by sessionManager.showMyFiles.collectAsState(initial = false)
 
+    // Local cached values — shown immediately before API responds
+    val localChannelId by sessionManager.channelId.collectAsState(initial = null)
+    val localUserId by sessionManager.userId.collectAsState(initial = null)
+
+    // Initialize display from local cache while API loads
+    LaunchedEffect(localChannelId) {
+        if (channelId == null && localChannelId != null) channelId = localChannelId
+    }
+    LaunchedEffect(localUserId) {
+        if (telegramId == null && localUserId != null) telegramId = localUserId
+    }
+
     // Load profile
     LaunchedEffect(Unit) {
         try {
@@ -75,15 +108,24 @@ fun ProfileScreen(
             memberSince = profile.memberSince ?: "Unknown"
             telegramId = profile.userId
             channelId = profile.channelId
-            // Save channel ID locally
+            dailyLinksUsed = profile.dailyLinksUsed ?: 0
+            dailyLinksLimit = profile.dailyLinksLimit ?: 100
+            dailySendsUsed = profile.dailySendsUsed ?: 0
+            dailySendsLimit = profile.dailySendsLimit ?: 50
+            // Save both locally for offline/cache use
             if (profile.channelId != null) {
                 sessionManager.setChannelId(profile.channelId)
+            }
+            if (profile.userId != null) {
+                sessionManager.setUserId(profile.userId)
             }
         } catch (e: ApiException) {
             if (e.statusCode == 401) {
                 sessionManager.clearSession()
                 onLogout()
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Toast.makeText(context, e.message ?: "Failed to load profile", Toast.LENGTH_SHORT).show()
         } finally {
@@ -138,6 +180,27 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Member Since", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(memberSince, style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Today's Usage", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Downloads", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LinearProgressIndicator(
+                                    progress = { dailyLinksUsed.toFloat() / dailyLinksLimit.toFloat() },
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                )
+                                Text("$dailyLinksUsed / $dailyLinksLimit", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Channel Sends", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                LinearProgressIndicator(
+                                    progress = { dailySendsUsed.toFloat() / dailySendsLimit.toFloat() },
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                                )
+                                Text("$dailySendsUsed / $dailySendsLimit", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
                     }
                 }
             }
@@ -183,6 +246,8 @@ fun ProfileScreen(
                                     Toast.makeText(context, "Password updated!", Toast.LENGTH_SHORT).show()
                                     currentPasswordPw = ""
                                     newPassword = ""
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
                                     Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
                                 } finally {
@@ -246,6 +311,8 @@ fun ProfileScreen(
                                     email = newEmail
                                     newEmail = ""
                                     currentPasswordEmail = ""
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
                                     Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
                                 } finally {
@@ -292,30 +359,59 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = {
-                                scope.launch {
-                                    isSettingTelegram = true
-                                    try {
-                                        val token = sessionManager.getToken() ?: return@launch
-                                        apiClient.updateTelegramId(token, telegramInput)
-                                        telegramId = telegramInput
-                                        telegramInput = ""
-                                        Toast.makeText(context, "Telegram ID updated!", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isSettingTelegram = false
-                                    }
-                                }
-                            },
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = !isSettingTelegram && telegramInput.isNotBlank()
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (isSettingTelegram) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            } else {
-                                Text("Update Telegram ID")
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isSettingTelegram = true
+                                        try {
+                                            val token = sessionManager.getToken() ?: return@launch
+                                            apiClient.updateTelegramId(token, telegramInput)
+                                            telegramId = telegramInput
+                                            sessionManager.setUserId(telegramInput)
+                                            telegramInput = ""
+                                            Toast.makeText(context, "Telegram ID updated!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isSettingTelegram = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSettingTelegram && telegramInput.isNotBlank()
+                            ) {
+                                if (isSettingTelegram) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Text("Update")
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        isSettingTelegram = true
+                                        try {
+                                            val token = sessionManager.getToken() ?: return@launch
+                                            apiClient.removeTelegramId(token)
+                                            telegramId = null
+                                            sessionManager.setUserId(null)
+                                            Toast.makeText(context, "Telegram ID removed!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, e.message ?: "Failed", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isSettingTelegram = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSettingTelegram,
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                            ) {
+                                Text("Remove")
                             }
                         }
                     } else {
@@ -382,19 +478,52 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Setup instructions info box
+                    // Auto Setup button (always visible)
+                    if (onAutoSetup != null) {
+                        Button(
+                            onClick = onAutoSetup,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.tertiary
+                            )
+                        ) {
+                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (channelId != null) "Change Channel (Auto Setup)" else "Auto Setup Channel")
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "— or enter channel ID manually below —",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
+                    // Bot admin warning
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
-                            Text("📋 How to setup:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("1. Add @LinkerXHelperbot to your channel as admin with full permissions", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "Required: add all bots as channel admins",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("2. Run the /setup command in your channel", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                "• @TGID1OO1Bot\n• @LinkerXHelperbot (then run /setup)\n• All bots listed in the LiquidXProjects channel",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text("3. Enter your Channel ID below (e.g. -1001234567890)", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                "The API will fail if any bot is missing admin permissions.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.height(12.dp))
@@ -566,6 +695,154 @@ fun ProfileScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+
+            // App Update
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("App Update", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    val currentVersion = UpdateManager.getVersionName(context)
+                    Text(
+                        "Installed: v$currentVersion",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    when {
+                        updateInfo != null -> {
+                            val update = updateInfo!!
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        "v${update.version} available",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    if (!update.changelog.isNullOrBlank()) {
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            update.changelog,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            maxLines = 6,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = {
+                                        isDownloadingUpdate = true
+                                        val downloadUrl = update.downloadUrl
+                                            ?: apiClient.getApkDownloadUrl(update.version)
+                                        UpdateManager.downloadAndInstallUpdate(context, downloadUrl, update.version)
+                                    },
+                                    enabled = !isDownloadingUpdate,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    if (isDownloadingUpdate) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("Downloading…")
+                                    } else {
+                                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Install Update")
+                                    }
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(ApiClient.GITHUB_RELEASES_PAGE))
+                                        context.startActivity(intent)
+                                    },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Text("GitHub")
+                                }
+                            }
+                        }
+                        updateChecked -> {
+                            Text(
+                                "✓ You're on the latest version.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = {
+                                    scope.launch {
+                                        isCheckingUpdate = true
+                                        updateChecked = false
+                                        try {
+                                            val remote = apiClient.checkForUpdate()
+                                            if (UpdateManager.isNewerVersion(remote.version, currentVersion)) {
+                                                updateInfo = remote
+                                            } else {
+                                                updateChecked = true
+                                            }
+                                        } catch (_: Exception) {
+                                            Toast.makeText(context, "Could not check for updates", Toast.LENGTH_SHORT).show()
+                                            updateChecked = true
+                                        } finally {
+                                            isCheckingUpdate = false
+                                        }
+                                    }
+                                },
+                                enabled = !isCheckingUpdate,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Check Again")
+                            }
+                        }
+                        else -> {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        isCheckingUpdate = true
+                                        try {
+                                            val remote = apiClient.checkForUpdate()
+                                            if (UpdateManager.isNewerVersion(remote.version, currentVersion)) {
+                                                updateInfo = remote
+                                            } else {
+                                                updateChecked = true
+                                            }
+                                        } catch (_: Exception) {
+                                            Toast.makeText(context, "Could not check for updates", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isCheckingUpdate = false
+                                        }
+                                    }
+                                },
+                                enabled = !isCheckingUpdate,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                if (isCheckingUpdate) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Checking…")
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Check for Updates")
+                                }
+                            }
+                        }
                     }
                 }
             }

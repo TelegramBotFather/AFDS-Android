@@ -67,7 +67,8 @@ fun FileCard(
     file: FileItem,
     currentCategory: String,
     onDetailsClick: (String, String) -> Unit,
-    showSaveButton: Boolean = true
+    showSaveButton: Boolean = true,
+    onRemoveClick: ((String, String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -84,6 +85,9 @@ fun FileCard(
     val fileId = file.effectiveId
     val category = file.effectiveCategory.ifEmpty { currentCategory }
     val catEnum = try { FileCategory.fromShortName(category) } catch (_: Exception) { FileCategory.MEDIA }
+    // For saving: currentCategory is always reliable (comes from the screen context).
+    // effectiveCategory from API response can be wrong (e.g. "files" for music results).
+    val saveCatEnum = try { FileCategory.fromShortName(currentCategory) } catch (_: Exception) { catEnum }
 
     Card(
         modifier = Modifier
@@ -150,7 +154,7 @@ fun FileCard(
                                     apiClient.saveFile(
                                         token = token,
                                         fileId = fileId,
-                                        category = category,
+                                        category = saveCatEnum.apiName,
                                         fileName = file.displayName,
                                         fileSize = file.fileSizeLong
                                     )
@@ -191,8 +195,9 @@ fun FileCard(
                             scope.launch {
                                 isSendingToChannel = true
                                 try {
+                                    val token = sessionManager.getToken() ?: return@launch
                                     val uniqueId = catEnum.getTelegramPrefix(fileId)
-                                    val response = apiClient.sendToChannel(uniqueId, channelIdVal)
+                                    val response = apiClient.sendToChannel(token, uniqueId, channelIdVal)
                                     if (response.success) {
                                         Toast.makeText(context, "Sent to channel!", Toast.LENGTH_SHORT).show()
                                     } else {
@@ -233,7 +238,9 @@ fun FileCard(
                         scope.launch {
                             isCopying = true
                             try {
+                                val token = sessionManager.getToken() ?: return@launch
                                 val response = apiClient.generateDownloadLink(
+                                    token,
                                     catEnum.getTableName(),
                                     fileId
                                 )
@@ -274,7 +281,9 @@ fun FileCard(
                         scope.launch {
                             isDownloading = true
                             try {
+                                val token = sessionManager.getToken() ?: return@launch
                                 val response = apiClient.generateDownloadLink(
+                                    token,
                                     catEnum.getTableName(),
                                     fileId
                                 )
@@ -299,6 +308,19 @@ fun FileCard(
                             Icons.Default.Download,
                             contentDescription = "Download",
                             tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                // Remove button (My Files only)
+                if (onRemoveClick != null) {
+                    IconButton(
+                        onClick = { onRemoveClick(fileId, category) }
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Remove",
+                            tint = MaterialTheme.colorScheme.error
                         )
                     }
                 }
@@ -405,6 +427,7 @@ fun FileListContent(
     onPageChange: (Int) -> Unit,
     onDetailsClick: (String, String) -> Unit,
     showSaveButton: Boolean = true,
+    onRemoveClick: ((String, String) -> Unit)? = null,
     emptyMessage: String = "No results found.",
     headerContent: @Composable () -> Unit = {}
 ) {
@@ -482,7 +505,8 @@ fun FileListContent(
                         file = file,
                         currentCategory = currentCategory,
                         onDetailsClick = onDetailsClick,
-                        showSaveButton = showSaveButton
+                        showSaveButton = showSaveButton,
+                        onRemoveClick = onRemoveClick
                     )
                 }
 

@@ -118,6 +118,10 @@ data class ProfileResponse(
     @SerialName("user_id") val userId: String? = null,
     @SerialName("user_id_updated_at") val userIdUpdatedAt: String? = null,
     @SerialName("channel_id") val channelId: String? = null,
+    @SerialName("daily_links_used") val dailyLinksUsed: Int? = null,
+    @SerialName("daily_links_limit") val dailyLinksLimit: Int? = null,
+    @SerialName("daily_sends_used") val dailySendsUsed: Int? = null,
+    @SerialName("daily_sends_limit") val dailySendsLimit: Int? = null,
     val error: String? = null
 )
 
@@ -144,6 +148,12 @@ data class SaveFileRequest(
     val category: String,
     @SerialName("file_name") val fileName: String,
     @SerialName("file_size") val fileSize: Long
+)
+
+@Serializable
+data class RemoveFileRequest(
+    @SerialName("file_id") val fileId: String,
+    val category: String
 )
 
 @Serializable

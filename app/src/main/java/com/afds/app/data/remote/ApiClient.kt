@@ -23,6 +23,8 @@ class ApiClient {
         const val FILE_DELIVERY_URL = "https://tgarchiveapifilecopyandlinkgen.hashhackersapi.workers.dev"
         const val GOOGLE_CLIENT_ID = "58094879805-2k4u6f17pfn7fm68kg31fcr4ah7slm0d.apps.googleusercontent.com"
         const val APK_BASE_URL = "https://afds.apks.zindex.eu.org/com.afds.app"
+        const val GITHUB_RELEASES_API = "https://api.github.com/repos/CloudflareHackers/AFDS-Android/releases/latest"
+        const val GITHUB_RELEASES_PAGE = "https://github.com/CloudflareHackers/AFDS-Android/releases/latest"
     }
 
     val json = Json {
@@ -103,18 +105,18 @@ class ApiClient {
 
     // ---- Search & Browse ----
 
-    suspend fun searchFiles(category: String, query: String, page: Int = 1): SearchResponse {
+    suspend fun searchFiles(token: String, category: String, query: String, page: Int = 1): SearchResponse {
         val cacheKey = CacheManager.searchKey(category, query, page)
         CacheManager.get<SearchResponse>(cacheKey)?.let { return it }
         Log.d("AFDS_API", "searchFiles: category=$category, query=$query, page=$page")
         val response = client.get("$BASE_URL/$category/search") {
+            header("Authorization", "Bearer $token")
             parameter("q", query)
             parameter("page", page)
         }
         Log.d("AFDS_API", "searchFiles response status: ${response.status}")
-        if (response.status == HttpStatusCode.Unauthorized) {
-            throw ApiException("Session expired", 401)
-        }
+        if (response.status == HttpStatusCode.Unauthorized) throw ApiException("Session expired", 401)
+        if (response.status.value == 429) throw ApiException("Daily limit reached. Try again tomorrow.", 429)
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "searchFiles raw response (first 500): ${bodyText.take(500)}")
         val result = json.decodeFromString<SearchResponse>(bodyText)
@@ -126,17 +128,17 @@ class ApiClient {
         return result
     }
 
-    suspend fun browseFiles(category: String, page: Int = 1): SearchResponse {
+    suspend fun browseFiles(token: String, category: String, page: Int = 1): SearchResponse {
         val cacheKey = CacheManager.browseKey(category, page)
         CacheManager.get<SearchResponse>(cacheKey)?.let { return it }
         Log.d("AFDS_API", "browseFiles: category=$category, page=$page")
         val response = client.get("$BASE_URL/$category/index") {
+            header("Authorization", "Bearer $token")
             parameter("page", page)
         }
         Log.d("AFDS_API", "browseFiles response status: ${response.status}")
-        if (response.status == HttpStatusCode.Unauthorized) {
-            throw ApiException("Session expired", 401)
-        }
+        if (response.status == HttpStatusCode.Unauthorized) throw ApiException("Session expired", 401)
+        if (response.status.value == 429) throw ApiException("Daily limit reached. Try again tomorrow.", 429)
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "browseFiles raw response (first 500): ${bodyText.take(500)}")
         val browseResult = json.decodeFromString<SearchResponse>(bodyText)
@@ -144,30 +146,27 @@ class ApiClient {
         return browseResult
     }
 
-    suspend fun getFileDetails(category: String, fileId: String): FileDetails {
+    suspend fun getFileDetails(token: String, category: String, fileId: String): FileDetails {
         Log.d("AFDS_API", "getFileDetails: category=$category, fileId=$fileId")
         val response = client.get("$BASE_URL/$category/id") {
+            header("Authorization", "Bearer $token")
             parameter("id", fileId)
         }
-        if (response.status == HttpStatusCode.Unauthorized) {
-            throw ApiException("Session expired", 401)
-        }
-        if (!response.status.isSuccess()) {
-            throw ApiException("Failed to fetch details", response.status.value)
-        }
+        if (response.status == HttpStatusCode.Unauthorized) throw ApiException("Session expired", 401)
+        if (!response.status.isSuccess()) throw ApiException("Failed to fetch details", response.status.value)
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "getFileDetails raw response (first 500): ${bodyText.take(500)}")
         return json.decodeFromString<FileDetails>(bodyText)
     }
 
-    suspend fun generateDownloadLink(tableName: String, fileId: String): GenLinkResponse {
+    suspend fun generateDownloadLink(token: String, tableName: String, fileId: String): GenLinkResponse {
         val response = client.get("$BASE_URL/genLink") {
+            header("Authorization", "Bearer $token")
             parameter("type", tableName)
             parameter("id", fileId)
         }
-        if (response.status == HttpStatusCode.Unauthorized) {
-            throw ApiException("Session expired", 401)
-        }
+        if (response.status == HttpStatusCode.Unauthorized) throw ApiException("Session expired", 401)
+        if (response.status.value == 429) throw ApiException("Daily link limit reached. Try again tomorrow.", 429)
         return response.body()
     }
 
@@ -247,6 +246,20 @@ class ApiClient {
         return response.body()
     }
 
+    suspend fun removeTelegramId(token: String): MessageResponse {
+        val response = client.delete("$BASE_URL/profile/remove-user-id") {
+            header("Authorization", "Bearer $token")
+        }
+        if (response.status == HttpStatusCode.Unauthorized) {
+            throw ApiException("Session expired", 401)
+        }
+        if (!response.status.isSuccess()) {
+            val error: MessageResponse = response.body()
+            throw ApiException(error.error ?: "Failed to remove Telegram ID", response.status.value)
+        }
+        return response.body()
+    }
+
     // ---- My Files ----
 
     suspend fun saveFile(token: String, fileId: String, category: String, fileName: String, fileSize: Long): MessageResponse {
@@ -283,6 +296,23 @@ class ApiClient {
         return myFilesResult
     }
 
+    suspend fun removeFile(token: String, fileId: String, category: String): MessageResponse {
+        val response = client.delete("$BASE_URL/user/remove-file") {
+            contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $token")
+            setBody(RemoveFileRequest(fileId, category))
+        }
+        if (response.status == HttpStatusCode.Unauthorized) {
+            throw ApiException("Session expired", 401)
+        }
+        if (!response.status.isSuccess()) {
+            val error: MessageResponse = response.body()
+            throw ApiException(error.error ?: "Failed to remove file", response.status.value)
+        }
+        CacheManager.invalidateAll()
+        return response.body()
+    }
+
     // ---- Channel ----
 
     suspend fun setChannelId(token: String, channelId: String): MessageResponse {
@@ -315,12 +345,14 @@ class ApiClient {
         return response.body()
     }
 
-    suspend fun sendToChannel(uniqueId: String, channelId: String): SendToChannelResponse {
+    suspend fun sendToChannel(token: String, uniqueId: String, channelId: String): SendToChannelResponse {
         Log.d("AFDS_API", "sendToChannel: uniqueId=$uniqueId, channelId=$channelId")
-        val response = client.post("$FILE_DELIVERY_URL/sendToChannel") {
+        val response = client.post("$BASE_URL/sendToChannel") {
             contentType(ContentType.Application.Json)
+            header("Authorization", "Bearer $token")
             setBody(SendToChannelRequest(uniqueId, channelId))
         }
+        if (response.status.value == 429) throw ApiException("Daily send limit reached. Try again tomorrow.", 429)
         val bodyText = response.bodyAsText()
         Log.d("AFDS_API", "sendToChannel response: $bodyText")
         return json.decodeFromString<SendToChannelResponse>(bodyText)
@@ -329,11 +361,21 @@ class ApiClient {
     // ---- Update ----
 
     suspend fun checkForUpdate(): AppUpdateInfo {
-        Log.d("AFDS_UPDATE", "Checking for update from $APK_BASE_URL/app.json")
-        val response = client.get("$APK_BASE_URL/app.json")
+        Log.d("AFDS_UPDATE", "Checking for update from GitHub releases")
+        val response = client.get(GITHUB_RELEASES_API) {
+            header("Accept", "application/vnd.github.v3+json")
+        }
         val bodyText = response.bodyAsText()
-        Log.d("AFDS_UPDATE", "Update response: $bodyText")
-        return json.decodeFromString<AppUpdateInfo>(bodyText)
+        Log.d("AFDS_UPDATE", "GitHub release response (first 500): ${bodyText.take(500)}")
+        val release = json.decodeFromString<GitHubRelease>(bodyText)
+        val version = release.tagName.trimStart('v')
+        val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
+        return AppUpdateInfo(
+            version = version,
+            changelog = release.body?.trim(),
+            forceUpdate = false,
+            downloadUrl = apkAsset?.downloadUrl
+        )
     }
 
     fun getApkDownloadUrl(version: String): String {

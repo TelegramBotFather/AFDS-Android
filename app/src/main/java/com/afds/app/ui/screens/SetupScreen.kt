@@ -3,6 +3,8 @@ package com.afds.app.ui.screens
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -14,18 +16,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.afds.app.AFDSApplication
 import com.afds.app.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
 fun SetupScreen(
     onSetupComplete: () -> Unit,
     onRefreshProfile: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onAutoSetup: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -83,6 +91,8 @@ fun SetupScreen(
                     step = 1
                     errorMessage = "Both User ID and Channel ID are missing."
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 errorMessage = "Failed to refresh: ${e.message}"
             } finally {
@@ -172,8 +182,19 @@ fun SetupScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
+                            val primaryColor = MaterialTheme.colorScheme.primary
+                            val userbotAnnotated = buildAnnotatedString {
+                                append("Enter your Telegram User ID. You can get it from ")
+                                pushLink(LinkAnnotation.Url(
+                                    "https://t.me/userinfobot",
+                                    TextLinkStyles(SpanStyle(color = primaryColor, textDecoration = TextDecoration.Underline))
+                                ))
+                                append("@userinfobot")
+                                pop()
+                                append(" on Telegram.")
+                            }
                             Text(
-                                "Enter your Telegram User ID. You can get it from @userinfobot on Telegram.",
+                                text = userbotAnnotated,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -201,6 +222,8 @@ fun SetupScreen(
                                             apiClient.setTelegramId(token, telegramUserId)
                                             sessionManager.setUserId(telegramUserId)
                                             step = 2
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             errorMessage = e.message
                                         } finally {
@@ -232,49 +255,25 @@ fun SetupScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Instructions
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("📋 Follow these steps:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Text("1️⃣ Create a Telegram channel (or use existing one)", style = MaterialTheme.typography.bodyMedium)
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text("2️⃣ Add @LinkerXHelperbot to your channel as admin with full permissions", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text("3️⃣ Run the /setup command in your channel", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Text("4️⃣ Get your Channel ID (it looks like -1001234567890)", style = MaterialTheme.typography.bodyMedium)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            Card(
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text("⚠️ Important", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                                    Text(
-                                        "The bot @LinkerXHelperbot MUST be an admin in your channel with full permissions, and /setup must be run BEFORE entering the channel ID.",
-                                        style = MaterialTheme.typography.bodySmall
+                            if (onAutoSetup != null) {
+                                Button(
+                                    onClick = onAutoSetup,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary
                                     )
+                                ) {
+                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Auto Setup (Recommended)")
                                 }
+                                Spacer(modifier = Modifier.height(12.dp))
                             }
-
-                            Spacer(modifier = Modifier.height(16.dp))
                             Button(
                                 onClick = { step = 3 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("I've done this, continue →")
+                                Text("Enter Channel ID Manually →")
                             }
                         }
                     }
@@ -298,6 +297,31 @@ fun SetupScreen(
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        "Before continuing, add ALL required bots as admins in your channel:",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "• @TGID1OO1Bot\n• @LinkerXHelperbot (then run /setup)\n• All bots listed in the LiquidXProjects channel",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "The API will fail if any bot is missing admin permissions.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
                             Spacer(modifier = Modifier.height(16.dp))
                             OutlinedTextField(
                                 value = channelId,
@@ -323,6 +347,8 @@ fun SetupScreen(
                                             apiClient.setChannelId(token, channelId)
                                             sessionManager.setChannelId(channelId)
                                             step = 4
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             errorMessage = e.message
                                         } finally {
@@ -381,6 +407,8 @@ fun SetupScreen(
                                             val profile = apiClient.getProfile(token)
                                             sessionManager.saveProfileData(profile.email, profile.userId, profile.channelId)
                                             onSetupComplete()
+                                        } catch (e: CancellationException) {
+                                            throw e
                                         } catch (e: Exception) {
                                             errorMessage = e.message
                                         } finally {

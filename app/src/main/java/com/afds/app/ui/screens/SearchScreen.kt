@@ -23,6 +23,7 @@ import com.afds.app.data.remote.ApiException
 import com.afds.app.ui.components.AFDSTopBar
 import com.afds.app.ui.components.FileDetailDialog
 import com.afds.app.ui.components.FileListContent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,8 +61,9 @@ fun SearchScreen(
         scope.launch {
             isLoading = true
             try {
+                val token = sessionManager.getToken() ?: run { onLogout(); return@launch }
                 Log.d("AFDS_SEARCH", "Searching: query='$query', category='$category', page=$page")
-                val response = apiClient.searchFiles(category, query, page)
+                val response = apiClient.searchFiles(token, category, query, page)
                 Log.d("AFDS_SEARCH", "Got ${response.files.size} files, page=${response.currentPageInt}/${response.totalPagesInt}")
                 files = response.files
                 currentPage = response.currentPageInt
@@ -75,6 +77,8 @@ fun SearchScreen(
                 } else {
                     Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Log.e("AFDS_SEARCH", "Exception during search: ${e::class.simpleName}: ${e.message}", e)
                 Toast.makeText(context, e.message ?: "Search failed", Toast.LENGTH_LONG).show()
@@ -170,7 +174,8 @@ fun SearchScreen(
                         detailsFileId = fileId
                         fileDetails = null
                         try {
-                            fileDetails = apiClient.getFileDetails(cat, fileId)
+                            val token = sessionManager.getToken() ?: run { showDetailsDialog = false; return@launch }
+                            fileDetails = apiClient.getFileDetails(token, cat, fileId)
                         } catch (e: Exception) {
                             Log.e("AFDS_SEARCH", "Details error for $fileId/$cat: ${e.message}", e)
                             Toast.makeText(context, e.message ?: "Failed to load details", Toast.LENGTH_SHORT).show()

@@ -2,6 +2,7 @@ package com.afds.app.ui.navigation
 
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
@@ -14,7 +15,9 @@ import com.afds.app.ui.screens.*
 
 object Routes {
     const val LOGIN = "login"
+    const val GOOGLE_LOGIN = "google_login"
     const val SETUP = "setup"
+    const val TELEGRAM_SETUP = "telegram_setup"
     const val HOME = "home"
     const val SEARCH = "search?query={query}&category={category}"
     const val BROWSE = "browse/{category}"
@@ -33,12 +36,22 @@ object Routes {
 fun AFDSNavHost(navController: NavHostController) {
     val sessionManager = AFDSApplication.instance.sessionManager
     val isLoggedIn by sessionManager.isLoggedIn.collectAsState(initial = false)
-    val isSetupComplete by sessionManager.isSetupComplete.collectAsState(initial = false)
 
     val startDestination = when {
         !isLoggedIn -> Routes.LOGIN
-        !isSetupComplete -> Routes.SETUP
         else -> Routes.HOME
+    }
+
+    // Reactively navigate to LOGIN whenever session expires mid-session
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn) {
+            val currentRoute = navController.currentDestination?.route
+            if (currentRoute != null && currentRoute != Routes.LOGIN) {
+                navController.navigate(Routes.LOGIN) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
@@ -53,7 +66,21 @@ fun AFDSNavHost(navController: NavHostController) {
                     navController.navigate(Routes.SETUP) {
                         popUpTo(Routes.LOGIN) { inclusive = true }
                     }
+                },
+                onGoogleLogin = {
+                    navController.navigate(Routes.GOOGLE_LOGIN)
                 }
+            )
+        }
+
+        composable(Routes.GOOGLE_LOGIN) {
+            GoogleLoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -61,7 +88,7 @@ fun AFDSNavHost(navController: NavHostController) {
             SetupScreen(
                 onSetupComplete = {
                     navController.navigate(Routes.HOME) {
-                        popUpTo(Routes.SETUP) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                     }
                 },
                 onRefreshProfile = { /* handled inside SetupScreen */ },
@@ -69,6 +96,9 @@ fun AFDSNavHost(navController: NavHostController) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onAutoSetup = {
+                    navController.navigate(Routes.TELEGRAM_SETUP)
                 }
             )
         }
@@ -155,6 +185,9 @@ fun AFDSNavHost(navController: NavHostController) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
+                },
+                onAutoSetup = {
+                    navController.navigate(Routes.TELEGRAM_SETUP)
                 }
             )
         }
@@ -167,6 +200,17 @@ fun AFDSNavHost(navController: NavHostController) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable(Routes.TELEGRAM_SETUP) {
+            TelegramSetupScreen(
+                onSetupComplete = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
     }

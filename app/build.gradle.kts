@@ -12,8 +12,8 @@ android {
         applicationId = "com.afds.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -99,6 +99,9 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Webkit (WebViewAssetLoader for WebView)
+    implementation("androidx.webkit:webkit:1.12.1")
 
     // Accompanist
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.36.0")

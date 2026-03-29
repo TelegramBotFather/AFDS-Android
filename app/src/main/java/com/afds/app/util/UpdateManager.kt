@@ -37,6 +37,18 @@ object UpdateManager {
         }
     }
 
+    fun isNewerVersion(remote: String, current: String): Boolean {
+        val r = remote.trimStart('v').split(".").mapNotNull { it.toIntOrNull() }
+        val c = current.trimStart('v').split(".").mapNotNull { it.toIntOrNull() }
+        for (i in 0 until maxOf(r.size, c.size)) {
+            val rv = r.getOrElse(i) { 0 }
+            val cv = c.getOrElse(i) { 0 }
+            if (rv > cv) return true
+            if (rv < cv) return false
+        }
+        return false
+    }
+
     fun getVersionName(context: Context): String {
         return try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

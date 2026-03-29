@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.rememberNavController
 import com.afds.app.data.model.AppUpdateInfo
+import com.afds.app.data.remote.ApiClient
 import com.afds.app.ui.navigation.AFDSNavHost
 import com.afds.app.ui.theme.AFDSTheme
 import com.afds.app.util.NetworkObserver
@@ -43,9 +44,9 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(isOnline) {
                     if (isOnline) {
                         try {
-                            val currentVersionCode = UpdateManager.getVersionCode(context)
+                            val currentVersionName = UpdateManager.getVersionName(context)
                             val remoteInfo = apiClient.checkForUpdate()
-                            if (remoteInfo.versionCode > currentVersionCode) {
+                            if (UpdateManager.isNewerVersion(remoteInfo.version, currentVersionName)) {
                                 updateInfo = remoteInfo
                                 showUpdateDialog = true
                             }
@@ -133,11 +134,10 @@ class MainActivity : ComponentActivity() {
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(12.dp))
-                                val manualUrl = apiClient.getApkDownloadUrl(update.version)
                                 TextButton(onClick = {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(manualUrl)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ApiClient.GITHUB_RELEASES_PAGE)))
                                 }) {
-                                    Text("📥 Manual download: ${update.version}.apk", style = MaterialTheme.typography.bodySmall)
+                                    Text("📥 View on GitHub Releases", style = MaterialTheme.typography.bodySmall)
                                 }
                             }
                         },
@@ -145,9 +145,11 @@ class MainActivity : ComponentActivity() {
                             Button(
                                 onClick = {
                                     isDownloadingUpdate = true
+                                    val downloadUrl = update.downloadUrl
+                                        ?: apiClient.getApkDownloadUrl(update.version)
                                     UpdateManager.downloadAndInstallUpdate(
                                         context,
-                                        apiClient.getApkDownloadUrl(update.version),
+                                        downloadUrl,
                                         update.version
                                     )
                                 },

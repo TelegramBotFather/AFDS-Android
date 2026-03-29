@@ -22,6 +22,7 @@ import com.afds.app.data.remote.ApiException
 import com.afds.app.ui.components.AFDSTopBar
 import com.afds.app.ui.components.FileDetailDialog
 import com.afds.app.ui.components.FileListContent
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.text.NumberFormat
 
@@ -58,7 +59,8 @@ fun BrowseScreen(
         scope.launch {
             isLoading = true
             try {
-                val response = apiClient.browseFiles(category, page)
+                val token = sessionManager.getToken() ?: run { onLogout(); return@launch }
+                val response = apiClient.browseFiles(token, category, page)
                 files = response.files
                 currentPage = response.currentPageInt
                 totalPages = response.totalPagesInt
@@ -70,6 +72,8 @@ fun BrowseScreen(
                 } else {
                     Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Toast.makeText(context, e.message ?: "Failed to load files", Toast.LENGTH_SHORT).show()
             } finally {
@@ -164,7 +168,8 @@ fun BrowseScreen(
                         detailsCategory = cat
                         fileDetails = null
                         try {
-                            fileDetails = apiClient.getFileDetails(cat, fileId)
+                            val token = sessionManager.getToken() ?: run { showDetailsDialog = false; return@launch }
+                            fileDetails = apiClient.getFileDetails(token, cat, fileId)
                         } catch (e: Exception) {
                             Toast.makeText(context, e.message ?: "Failed to load details", Toast.LENGTH_SHORT).show()
                             showDetailsDialog = false
