@@ -9,10 +9,12 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.webkit.WebViewAssetLoader
 import com.afds.app.AFDSApplication
 import com.afds.app.data.remote.ApiException
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +35,10 @@ class TelegramSetupActivity : ComponentActivity() {
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
+
+        val assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
 
         val bridge = object : Any() {
             @JavascriptInterface
@@ -102,6 +108,13 @@ class TelegramSetupActivity : ComponentActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                return assetLoader.shouldInterceptRequest(request.url)
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -111,14 +124,14 @@ class TelegramSetupActivity : ComponentActivity() {
                     Log.e("TGSetup", "WebView error: ${error.errorCode} — ${error.description}")
                     Toast.makeText(
                         this@TelegramSetupActivity,
-                        "Could not load setup page. Check your connection.",
+                        "Could not load setup page.",
                         Toast.LENGTH_LONG
                     ).show()
                 }
             }
         }
 
-        webView.loadUrl("https://afds.pages.dev/android-tg-setup.html")
+        webView.loadUrl("https://appassets.androidplatform.net/assets/tg-webapp/afds-setup.html")
     }
 
     @Deprecated("Deprecated in Java")
