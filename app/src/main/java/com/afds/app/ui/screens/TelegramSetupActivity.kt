@@ -1,0 +1,130 @@
+package com.afds.app.ui.screens
+
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.os.Bundle
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import android.widget.Toast
+import androidx.activity.ComponentActivity
+import com.afds.app.AFDSApplication
+import com.afds.app.data.remote.ApiException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+class TelegramSetupActivity : ComponentActivity() {
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        val webView = WebView(this)
+        setContentView(webView)
+
+        val apiClient = AFDSApplication.instance.apiClient
+        val sessionManager = AFDSApplication.instance.sessionManager
+
+        webView.settings.javaScriptEnabled = true
+        webView.settings.domStorageEnabled = true
+
+        val bridge = object : Any() {
+            @JavascriptInterface
+            fun onChannelCreated(channelId: String, telegramUserId: String) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        val token = sessionManager.getToken() ?: run {
+                            Toast.makeText(this@TelegramSetupActivity, "Session expired. Please log in again.", Toast.LENGTH_SHORT).show()
+                            setResult(Activity.RESULT_CANCELED)
+                            finish()
+                            return@launch
+                        }
+                        sessionManager.setChannelId(channelId)
+                        if (telegramUserId.isNotEmpty()) {
+                            sessionManager.setUserId(telegramUserId)
+                        }
+                        apiClient.setChannelId(token, channelId)
+                        if (telegramUserId.isNotEmpty()) {
+                            try {
+                                apiClient.setTelegramId(token, telegramUserId)
+                            } catch (_: ApiException) {
+                                try { apiClient.updateTelegramId(token, telegramUserId) } catch (_: Exception) {}
+                            }
+                        }
+                        Toast.makeText(this@TelegramSetupActivity, "Channel ready: $channelId", Toast.LENGTH_SHORT).show()
+                        setResult(Activity.RESULT_OK)
+                        finish()
+                    } catch (e: ApiException) {
+                        if (e.statusCode == 401) sessionManager.clearSession()
+                        Toast.makeText(this@TelegramSetupActivity, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@TelegramSetupActivity, "Failed to save: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+
+            @JavascriptInterface
+            fun onSetupComplete() {
+                CoroutineScope(Dispatchers.Main).launch {
+                    setResult(Activity.RESULT_OK)
+                    finish()
+                }
+            }
+
+            @JavascriptInterface
+            fun onError(message: String) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    Toast.makeText(this@TelegramSetupActivity, "Setup error: $message", Toast.LENGTH_LONG).show()
+                    setResult(Activity.RESULT_CANCELED)
+                    finish()
+                }
+            }
+        }
+
+        webView.addJavascriptInterface(bridge, "AndroidBridge")
+
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                val level = when (msg.messageLevel()) {
+                    ConsoleMessage.MessageLevel.ERROR -> Log.ERROR
+                    ConsoleMessage.MessageLevel.WARNING -> Log.WARN
+                    else -> Log.DEBUG
+                }
+                Log.println(level, "TGSetup-JS", msg.message())
+                return true
+            }
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView,
+                request: WebResourceRequest,
+                error: WebResourceError
+            ) {
+                if (request.isForMainFrame) {
+                    Log.e("TGSetup", "WebView error: ${error.errorCode} — ${error.description}")
+                    Toast.makeText(
+                        this@TelegramSetupActivity,
+                        "Could not load setup page. Check your connection.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
+
+        webView.loadUrl("https://afds.pages.dev/android-tg-setup.html")
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        setResult(Activity.RESULT_CANCELED)
+        @Suppress("DEPRECATION")
+        super.onBackPressed()
+    }
+}

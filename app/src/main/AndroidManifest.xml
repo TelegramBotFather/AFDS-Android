@@ -33,6 +33,11 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".ui.screens.TelegramSetupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AFDS" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
