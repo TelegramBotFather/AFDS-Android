@@ -146,7 +146,16 @@ class TelegramSetupActivity : ComponentActivity() {
             }
         }
 
-        webView.loadUrl("https://appassets.androidplatform.net/assets/tg-webapp/afds-setup.html")
+        // Load HTML inline — avoids a real HTTP request to appassets.androidplatform.net
+        // which fails in release builds. Sub-resources (JS) are still served via shouldInterceptRequest.
+        val html = assets.open("tg-webapp/afds-setup.html").bufferedReader().readText()
+        webView.loadDataWithBaseURL(
+            "https://appassets.androidplatform.net/assets/tg-webapp/",
+            html,
+            "text/html",
+            "UTF-8",
+            null
+        )
     }
 
     @Deprecated("Deprecated in Java")
