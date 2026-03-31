@@ -91,9 +91,25 @@ object UpdateManager {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: Intent) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
-                if (id == downloadId) {
+                if (id != downloadId) return
+                context.unregisterReceiver(this)
+
+                // Check download actually succeeded before installing
+                val query = DownloadManager.Query().setFilterById(downloadId)
+                val cursor = downloadManager.query(query)
+                var success = false
+                if (cursor.moveToFirst()) {
+                    val status = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                    success = status == DownloadManager.STATUS_SUCCESSFUL
+                    if (!success) {
+                        val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                        Log.e(TAG, "Download failed — status=$status reason=$reason")
+                    }
+                }
+                cursor.close()
+
+                if (success) {
                     Log.d(TAG, "Download complete, installing...")
-                    context.unregisterReceiver(this)
                     installApk(context, fileName)
                 }
             }
