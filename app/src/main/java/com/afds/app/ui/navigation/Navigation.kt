@@ -17,7 +17,6 @@ object Routes {
     const val LOGIN = "login"
     const val GOOGLE_LOGIN = "google_login"
     const val SETUP = "setup"
-    const val TELEGRAM_SETUP = "telegram_setup"
     const val HOME = "home"
     const val SEARCH = "search?query={query}&category={category}"
     const val BROWSE = "browse/{category}"
@@ -96,9 +95,6 @@ fun AFDSNavHost(navController: NavHostController) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
-                },
-                onAutoSetup = {
-                    navController.navigate(Routes.TELEGRAM_SETUP)
                 }
             )
         }
@@ -185,9 +181,6 @@ fun AFDSNavHost(navController: NavHostController) {
                     navController.navigate(Routes.LOGIN) {
                         popUpTo(0) { inclusive = true }
                     }
-                },
-                onAutoSetup = {
-                    navController.navigate(Routes.TELEGRAM_SETUP)
                 }
             )
         }
@@ -203,15 +196,5 @@ fun AFDSNavHost(navController: NavHostController) {
             )
         }
 
-        composable(Routes.TELEGRAM_SETUP) {
-            TelegramSetupScreen(
-                onSetupComplete = {
-                    navController.navigate(Routes.HOME) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                },
-                onBack = { navController.popBackStack() }
-            )
-        }
     }
 }

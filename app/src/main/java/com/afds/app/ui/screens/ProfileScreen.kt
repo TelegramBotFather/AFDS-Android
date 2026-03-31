@@ -1,6 +1,10 @@
 package com.afds.app.ui.screens
 
+import android.app.Activity
+import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,10 +39,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     onBack: () -> Unit,
-    onLogout: () -> Unit,
-    onAutoSetup: (() -> Unit)? = null
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+
+    val telegramSetupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { /* result handled inside TelegramSetupActivity via sessionManager */ }
     val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
     val apiClient = AFDSApplication.instance.apiClient
@@ -479,26 +486,28 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     // Auto Setup button (always visible)
-                    if (onAutoSetup != null) {
-                        Button(
-                            onClick = onAutoSetup,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiary
+                    Button(
+                        onClick = {
+                            telegramSetupLauncher.launch(
+                                Intent(context, TelegramSetupActivity::class.java)
                             )
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (channelId != null) "Change Channel (Auto Setup)" else "Auto Setup Channel")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "— or enter channel ID manually below —",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (channelId != null) "Change Channel (Auto Setup)" else "Auto Setup Channel")
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "— or enter channel ID manually below —",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // Bot admin warning
                     Card(

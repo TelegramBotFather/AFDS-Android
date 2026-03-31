@@ -1,6 +1,9 @@
 package com.afds.app.ui.screens
 
+import android.content.Intent
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.text.LinkAnnotation
@@ -32,10 +35,13 @@ import kotlinx.coroutines.launch
 fun SetupScreen(
     onSetupComplete: () -> Unit,
     onRefreshProfile: () -> Unit,
-    onLogout: () -> Unit,
-    onAutoSetup: (() -> Unit)? = null
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+
+    val telegramSetupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { /* result handled inside TelegramSetupActivity via sessionManager */ }
     val scope = rememberCoroutineScope()
     val apiClient = AFDSApplication.instance.apiClient
     val sessionManager = AFDSApplication.instance.sessionManager
@@ -255,20 +261,22 @@ fun SetupScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            if (onAutoSetup != null) {
-                                Button(
-                                    onClick = onAutoSetup,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = MaterialTheme.colorScheme.tertiary
+                            Button(
+                                onClick = {
+                                    telegramSetupLauncher.launch(
+                                        Intent(context, TelegramSetupActivity::class.java)
                                     )
-                                ) {
-                                    Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("Auto Setup (Recommended)")
-                                }
-                                Spacer(modifier = Modifier.height(12.dp))
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary
+                                )
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Auto Setup (Recommended)")
                             }
+                            Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = { step = 3 },
                                 modifier = Modifier.fillMaxWidth()
