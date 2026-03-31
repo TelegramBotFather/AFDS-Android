@@ -23,7 +23,8 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withStyle
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -268,22 +269,26 @@ fun LoginScreen(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     val botAnnotated = buildAnnotatedString {
                                         append("Code sent to Telegram ")
-                                        pushStringAnnotation("URL", "https://t.me/$botId")
-                                        withStyle(SpanStyle(
-                                            color = MaterialTheme.colorScheme.secondary,
-                                            textDecoration = TextDecoration.Underline
-                                        )) { append("@$botId") }
-                                        pop()
+                                        addLink(
+                                            LinkAnnotation.Url(
+                                                url = "https://t.me/$botId",
+                                                styles = TextLinkStyles(
+                                                    style = SpanStyle(
+                                                        color = MaterialTheme.colorScheme.secondary,
+                                                        textDecoration = TextDecoration.Underline
+                                                    )
+                                                )
+                                            ),
+                                            start = length,
+                                            end = length + "@$botId".length
+                                        )
+                                        append("@$botId")
                                     }
-                                    ClickableText(
+                                    Text(
                                         text = botAnnotated,
                                         style = MaterialTheme.typography.bodySmall.copy(
                                             color = MaterialTheme.colorScheme.onSecondaryContainer
-                                        ),
-                                        onClick = { offset ->
-                                            botAnnotated.getStringAnnotations("URL", offset, offset)
-                                                .firstOrNull()?.let { uriHandler.openUri(it.item) }
-                                        }
+                                        )
                                     )
                                 }
                             }
