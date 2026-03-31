@@ -13,3 +13,8 @@
 
 # Google Sign-In
 -keep class com.google.android.gms.** { *; }
+
+# JavascriptInterface — R8 strips @JavascriptInterface methods in release
+-keepclassmembers class * {
+    @android.webkit.JavascriptInterface <methods>;
+}
