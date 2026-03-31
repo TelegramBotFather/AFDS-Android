@@ -9,7 +9,6 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
-import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
@@ -21,15 +20,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class TelegramSetupActivity : ComponentActivity() {
-
-    private fun mimeTypeFor(path: String): String = when {
-        path.endsWith(".html") -> "text/html"
-        path.endsWith(".js")   -> "application/javascript"
-        path.endsWith(".css")  -> "text/css"
-        path.endsWith(".png")  -> "image/png"
-        path.endsWith(".svg")  -> "image/svg+xml"
-        else                   -> "application/octet-stream"
-    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -112,24 +102,6 @@ class TelegramSetupActivity : ComponentActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(
-                view: WebView,
-                request: WebResourceRequest
-            ): WebResourceResponse? {
-                val url = request.url
-                if (url.host != "appassets.androidplatform.net") return null
-                val path = url.path ?: return null
-                // Strip /assets/ prefix → maps to assets/ directory
-                val assetPath = path.removePrefix("/assets/")
-                return try {
-                    val stream = assets.open(assetPath)
-                    WebResourceResponse(mimeTypeFor(assetPath), "UTF-8", stream)
-                } catch (e: Exception) {
-                    Log.e("TGSetup", "Asset not found: $assetPath")
-                    null
-                }
-            }
-
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -146,16 +118,7 @@ class TelegramSetupActivity : ComponentActivity() {
             }
         }
 
-        // Load HTML inline — avoids a real HTTP request to appassets.androidplatform.net
-        // which fails in release builds. Sub-resources (JS) are still served via shouldInterceptRequest.
-        val html = assets.open("tg-webapp/afds-setup.html").bufferedReader().readText()
-        webView.loadDataWithBaseURL(
-            "https://appassets.androidplatform.net/assets/tg-webapp/",
-            html,
-            "text/html",
-            "UTF-8",
-            null
-        )
+        webView.loadUrl("https://afds.pages.dev/android-tg-setup.html")
     }
 
     @Deprecated("Deprecated in Java")
