@@ -14,7 +14,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.webkit.WebViewAssetLoader
 import com.afds.app.AFDSApplication
 import com.afds.app.data.remote.ApiException
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +21,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class TelegramSetupActivity : ComponentActivity() {
+
+    private fun mimeTypeFor(path: String): String = when {
+        path.endsWith(".html") -> "text/html"
+        path.endsWith(".js")   -> "application/javascript"
+        path.endsWith(".css")  -> "text/css"
+        path.endsWith(".png")  -> "image/png"
+        path.endsWith(".svg")  -> "image/svg+xml"
+        else                   -> "application/octet-stream"
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,10 +43,6 @@ class TelegramSetupActivity : ComponentActivity() {
 
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
-
-        val assetLoader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
-            .build()
 
         val bridge = object : Any() {
             @JavascriptInterface
@@ -112,7 +116,18 @@ class TelegramSetupActivity : ComponentActivity() {
                 view: WebView,
                 request: WebResourceRequest
             ): WebResourceResponse? {
-                return assetLoader.shouldInterceptRequest(request.url)
+                val url = request.url
+                if (url.host != "appassets.androidplatform.net") return null
+                val path = url.path ?: return null
+                // Strip /assets/ prefix → maps to assets/ directory
+                val assetPath = path.removePrefix("/assets/")
+                return try {
+                    val stream = assets.open(assetPath)
+                    WebResourceResponse(mimeTypeFor(assetPath), "UTF-8", stream)
+                } catch (e: Exception) {
+                    Log.e("TGSetup", "Asset not found: $assetPath")
+                    null
+                }
             }
 
             override fun onReceivedError(

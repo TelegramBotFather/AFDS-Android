@@ -13,7 +13,3 @@
 
 # Google Sign-In
 -keep class com.google.android.gms.** { *; }
-
-# WebViewAssetLoader (androidx.webkit) — required for local asset serving in release builds
--keep class androidx.webkit.** { *; }
--keep class org.chromium.support_lib_boundary.** { *; }
